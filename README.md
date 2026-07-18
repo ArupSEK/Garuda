@@ -1,8 +1,35 @@
 # Garuda
 
-Garuda is a Python-based penetration testing toolkit for authorized reconnaissance and security assessment workflows.
+Garuda is a modular Python security assessment platform for authorized external reconnaissance, web inspection, service fingerprinting, and safe vulnerability-template validation.
 
-This first MVP includes a local web application and a bounded external-IP scanner. It performs public-target validation, TCP connect checks, HTTP response inspection, TLS certificate summaries, JSON reporting, and finding triage. Destructive tests, exploit payloads, stealth behavior, and private-network scans are not enabled.
+This release upgrades the original port-scanner MVP into an orchestrator with scan profiles, normalized evidence, optional Nmap and Nuclei integrations, a safer localhost API, and a modern web interface.
+
+## What it can do
+
+- Validate and pin public DNS targets before network access.
+- Scan up to 256 selected TCP ports concurrently.
+- Identify externally reachable services.
+- Inspect HTTP/HTTPS using the already validated IP address to reduce DNS-rebinding risk.
+- Check selected HTTP hardening headers and technology disclosures.
+- Collect TLS protocol, cipher, and certificate summaries.
+- Use Nmap for optional service/version fingerprinting.
+- Use Nuclei for optional rate-limited safe-template checks.
+- Normalize findings into severity, confidence, evidence, recommendation, references, and fingerprints.
+- Export the complete assessment report as JSON.
+
+## Safety boundary
+
+Garuda requires explicit authorization and currently permits public internet targets only. The included profiles do not enable exploitation, brute force, denial-of-service, destructive testing, persistence, credential attacks, or intrusive red-team actions.
+
+Nuclei execution is opt-in and excludes templates tagged as DoS, fuzzing, brute force, default-login, headless, and code execution. Review your installed template collection before using it against a client environment.
+
+## Requirements
+
+- Python 3.10 or later
+- Optional: Nmap in `PATH`
+- Optional: Nuclei in `PATH`
+
+Garuda's built-in modules use only the Python standard library.
 
 ## Run
 
@@ -10,24 +37,58 @@ This first MVP includes a local web application and a bounded external-IP scanne
 python server.py
 ```
 
-Open the printed local URL, usually:
+Open the displayed address, normally:
 
 ```text
 http://127.0.0.1:8087
 ```
 
-If port `8087` is busy, the server selects the next available local port.
+To enable the optional Nuclei adapter:
+
+```powershell
+$env:GARUDA_ENABLE_NUCLEI="1"
+python server.py
+```
+
+On Linux or macOS:
+
+```bash
+GARUDA_ENABLE_NUCLEI=1 python server.py
+```
+
+## Profiles
+
+- `external-safe`: built-in TCP reachability and pinned HTTP/TLS inspection.
+- `web-safe`: built-in modules plus optional safe Nuclei template checks.
+- `red-team-readonly`: built-in modules, optional Nmap service detection, and optional safe Nuclei checks. This version remains read-only and does not exploit targets.
 
 ## Test
 
 ```powershell
-python -m unittest discover -s tests
+python -m unittest discover -s tests -v
 ```
 
-## Current Safety Controls
+## Project structure
 
-- Explicit authorization is required for every scan request.
-- Targets must resolve only to public internet IP addresses.
-- Port lists are capped at 25 ports per scan.
-- Socket timeouts are capped at 5 seconds.
-- The module only performs low-impact reconnaissance.
+```text
+garuda/
+├── models.py
+├── orchestrator.py
+├── process.py
+├── scope.py
+└── modules/
+    ├── base.py
+    ├── tcp_connect.py
+    ├── http_probe.py
+    ├── nmap_adapter.py
+    └── nuclei_adapter.py
+```
+
+## Next development milestones
+
+1. Persistent scan jobs and SQLite/PostgreSQL storage.
+2. Authenticated web/API sessions and OpenAPI/Postman import.
+3. Crawling, endpoint inventory, and role-based authorization comparison.
+4. CVE, EPSS, and KEV enrichment.
+5. Signed custom-module repository and template review workflow.
+6. Distributed scanning agents and attack-path correlation.
