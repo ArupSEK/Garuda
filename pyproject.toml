@@ -1,0 +1,8 @@
+[project]
+name = "garuda-security"
+version = "1.0.0"
+description = "Modular authorized external security assessment platform"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 120
