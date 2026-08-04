@@ -1,6 +1,11 @@
+FROM golang:1.25-bookworm AS httpx-builder
+ARG HTTPX_VERSION=v1.9.0
+RUN CGO_ENABLED=0 go install github.com/projectdiscovery/httpx/cmd/httpx@${HTTPX_VERSION}
+
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app
 RUN apt-get update && apt-get install -y --no-install-recommends nmap curl ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=httpx-builder /go/bin/httpx /usr/local/bin/httpx-pd
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY app ./app

@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     nmap_path: str = "nmap"
     naabu_path: str = "naabu"
-    httpx_path: str = "httpx"
+    httpx_path: str = "httpx-pd"
     nuclei_path: str = "nuclei"
     testssl_path: str = "testssl.sh"
     ssh_audit_path: str = "ssh-audit"

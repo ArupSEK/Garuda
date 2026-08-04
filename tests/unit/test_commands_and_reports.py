@@ -34,6 +34,18 @@ async def test_command_timeout():
 
 
 @pytest.mark.asyncio
+async def test_command_failure_uses_stdout_when_stderr_is_empty():
+    runner = CommandRunner()
+    executable = "python" if runner.dependency_available("python") else "python3"
+    with pytest.raises(CommandExecutionError, match="scanner diagnostic"):
+        await runner.run(
+            "failure-test",
+            [executable, "-c", "print('scanner diagnostic'); raise SystemExit(7)"],
+            timeout=5,
+        )
+
+
+@pytest.mark.asyncio
 async def test_scan_cancellation():
     runner = CommandRunner()
     executable = "python" if runner.dependency_available("python") else "python3"
