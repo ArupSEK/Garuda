@@ -34,6 +34,25 @@ Scanner arguments are assembled exclusively inside adapters and executed with `a
 
 ## Quick start
 
+### One-command launchers
+
+Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start_windows.ps1
+```
+
+Linux, Kali, Ubuntu, or WSL:
+
+```bash
+chmod +x scripts/start_linux.sh
+./scripts/start_linux.sh
+```
+
+Both scripts create `.venv` and `.env` when needed, generate a random application secret, apply database migrations, start the API and dashboard in the background, write logs/PID files under `logs/`, and open the dashboard. Set `NO_BROWSER=1` on Linux or use `-NoBrowser` on Windows to suppress browser launch.
+
+### Manual launch
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
