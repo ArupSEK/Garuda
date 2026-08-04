@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "external-network-va-scanner"
+version = "1.0.0"
+description = "Authorized, non-destructive external network vulnerability assessment"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.116,<1",
+  "uvicorn[standard]>=0.35,<1",
+  "pydantic-settings>=2.10,<3",
+  "sqlalchemy>=2.0,<3",
+  "alembic>=1.16,<2",
+  "passlib[argon2]>=1.7,<2",
+  "python-jose[cryptography]>=3.5,<4",
+  "python-multipart>=0.0.20,<1",
+  "email-validator>=2.2,<3",
+  "jinja2>=3.1,<4",
+  "pyyaml>=6.0,<7",
+  "httpx>=0.28,<1",
+  "streamlit>=1.47,<2",
+]
+
+[project.optional-dependencies]
+pdf = ["weasyprint>=66,<67"]
+dev = ["pytest>=8.4,<9", "pytest-asyncio>=1.1,<2", "pytest-cov>=6.2,<7", "ruff>=0.12,<1"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+ignore = ["B008", "BLE001", "DTZ011", "SIM117"]

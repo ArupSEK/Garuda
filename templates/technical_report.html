@@ -1,0 +1,6 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Technical VA Report</title><style>body{font:13px Arial;margin:2rem;color:#17202a}h1,h2{color:#123b5d}table{border-collapse:collapse;width:100%;margin-bottom:1rem}td,th{border:1px solid #ccd;padding:.35rem;text-align:left;vertical-align:top}</style></head><body>
+<h1>External Network VA — Technical Report</h1><p>Scan {{ report.scan.public_id }} completed with profile {{ report.scan.profile }}.</p>
+<h2>Methodology</h2><p>Public-scope validation, Nmap confirmation, optional HTTP/TLS/SSH and safe signed-template checks. No exploitation or credential attacks were performed.</p>
+<h2>Service inventory</h2><table><tr><th>IP</th><th>Port</th><th>Transport</th><th>Protocol</th><th>Version</th></tr>{% for s in report.services %}<tr><td>{{s.ip}}</td><td>{{s.port}}</td><td>{{s.transport}}</td><td>{{s.protocol}}</td><td>{{s.version or ''}}</td></tr>{% endfor %}</table>
+<h2>Findings</h2>{% for f in report.findings %}<h3>{{f.title}}</h3><p><strong>{{f.severity|upper}} / {{f.priority}}</strong> — {{f.asset_ip}}:{{f.port or ''}} — Confidence: {{f.confidence}}</p><p>{{f.description}}</p><pre>{{f.evidence}}</pre><p><strong>Remediation:</strong> {{f.remediation}}</p>{% else %}<p>No normalized vulnerability findings were produced.</p>{% endfor %}</body></html>
+
