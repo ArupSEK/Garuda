@@ -1,0 +1,21 @@
+services:
+  api:
+    build: .
+    environment:
+      DATABASE_URL: sqlite:////app/data/garuda.db
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+    volumes:
+      - ./data:/app/data
+      - ./evidence:/app/evidence
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+    ports: ["${GARUDA_API_PORT:-8000}:8000"]
+    restart: unless-stopped
+  dashboard:
+    build: .
+    command: ["streamlit", "run", "dashboard/streamlit_app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
+    environment:
+      API_URL: http://api:8000
+    depends_on: [api]
+    ports: ["${GARUDA_DASHBOARD_PORT:-8501}:8501"]
+    restart: unless-stopped

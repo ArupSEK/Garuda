@@ -1,33 +1,91 @@
-# Garuda
+# External Network VA Scanner
 
-Garuda is a Python-based penetration testing toolkit for authorized reconnaissance and security assessment workflows.
+External Network VA Scanner (Garuda) is a web-based, non-destructive assessment platform for public IPv4 assets that you own or have explicit written authorization to test. It validates engagement scope, runs controlled scanner adapters, normalizes evidence, stores history, compares scans, and exports reports.
 
-This first MVP includes a local web application and a bounded external-IP scanner. It performs public-target validation, TCP connect checks, HTTP response inspection, TLS certificate summaries, JSON reporting, and finding triage. Destructive tests, exploit payloads, stealth behavior, and private-network scans are not enabled.
+> Only scan systems that you own or have explicit written authorization to assess. Unauthorized scanning may be illegal and may disrupt third-party services.
 
-## Run
+## Version 1 features
 
-```powershell
-python server.py
+- FastAPI backend, Streamlit dashboard, JWT login, Argon2 password hashing, and admin/analyst/viewer roles.
+- Engagement authorization records with dates, approved CIDRs, exclusions, contacts, and scan windows.
+- Public IPv4-only validation, `/24` default CIDR ceiling, deduplication, rate/timeout controls, audit logging, and scan cancellation.
+- Safe adapters for Nmap, Naabu, ProjectDiscovery httpx/Nuclei, testssl.sh, ssh-audit, dnsx, and GoWitness.
+- Nmap XML, Naabu/httpx/Nuclei JSONL, testssl JSON, ssh-audit JSON, and dnsx JSON parsers.
+- SQLite persistence using PostgreSQL-compatible SQLAlchemy models.
+- Stable finding fingerprints, cross-scanner deduplication, contextual priorities, scan comparison, and HTML/CSV/JSON/JSONL/PDF reports.
+- Optional scanners do not prevent startup. Nmap is required to execute a scan because all discovery must be confirmed by Nmap.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  U["Authorized analyst"] --> S["Streamlit dashboard"]
+  S --> A["FastAPI + RBAC"]
+  A --> V["Scope and authorization validator"]
+  V --> O["Cancellable scan orchestrator"]
+  O --> T["Allowlisted scanner adapters"]
+  T --> P["Output parsers"]
+  P --> N["Normalize, deduplicate, risk-score"]
+  N --> D[("SQLite / PostgreSQL")]
+  D --> R["Reports and comparison"]
 ```
 
-Open the printed local URL, usually:
+Scanner arguments are assembled exclusively inside adapters and executed with `asyncio.create_subprocess_exec`; `shell=True` and browser-supplied command flags are never used.
 
-```text
-http://127.0.0.1:8087
+## Quick start
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+cp .env.example .env
+python -c 'from app.database import initialize_database; initialize_database()'
+uvicorn app.main:app --reload
 ```
 
-If port `8087` is busy, the server selects the next available local port.
+In another terminal:
 
-## Test
-
-```powershell
-python -m unittest discover -s tests
+```bash
+source .venv/bin/activate
+streamlit run dashboard/streamlit_app.py
 ```
 
-## Current Safety Controls
+Open the API at `http://127.0.0.1:8000`, API documentation at `http://127.0.0.1:8000/docs`, and dashboard at `http://127.0.0.1:8501`. Use **Initial setup** once to create the first administrator.
 
-- Explicit authorization is required for every scan request.
-- Targets must resolve only to public internet IP addresses.
-- Port lists are capped at 25 ports per scan.
-- Socket timeouts are capped at 5 seconds.
-- The module only performs low-impact reconnaissance.
+## Scan profiles
+
+- **Quick:** top 100 TCP ports, service detection, no vulnerability templates.
+- **Standard:** top 1,000 TCP ports, service/HTTP checks, safe Nuclei policy, and optional TLS/SSH checks.
+- **Full:** all TCP ports and reviewed checks; expect significantly longer execution.
+- **Custom:** controlled switches only. Arbitrary tool arguments are intentionally unsupported.
+
+Configuration lives in `config/scan_profiles.yaml`, `config/nmap_scripts.yaml`, `config/nuclei_policy.yaml`, and `config/risk_scoring.yaml`. Review these policies before each production engagement.
+
+## Testing
+
+```bash
+pytest
+ruff check app dashboard tests
+```
+
+Tests use fixtures and mocks only; they do not scan external systems.
+
+## Docker
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+The base image includes Nmap. Install additional approved scanner binaries in a controlled derivative image for Standard/Full functionality. See [INSTALL.md](INSTALL.md), [AUTHORIZED_USE.md](AUTHORIZED_USE.md), and [SECURITY.md](SECURITY.md).
+
+## Screenshots
+
+Dashboard, engagement, scan progress, asset, finding, comparison, and report screenshots will be added after the first tagged UI release.
+
+## Limitations
+
+This is not an exploit framework or proof that an asset is secure. Version-derived CVEs require confidence labeling and manual validation. External observations can be affected by firewalls, CDNs, load balancers, rate limits, and scan windows. CISA KEV/CVE online feed synchronization and Greenbone are Version 2 integration points.
+
+Contributions must preserve the prohibited-functionality policy; see [CONTRIBUTING.md](CONTRIBUTING.md).
+

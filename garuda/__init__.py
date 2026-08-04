@@ -1,2 +1,0 @@
-"""Garuda reconnaissance toolkit."""
-

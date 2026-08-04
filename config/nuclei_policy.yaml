@@ -1,0 +1,6 @@
+nuclei:
+  severities: [info, low, medium, high, critical]
+  allowed_tags: [cve, misconfig, exposure, tech, ssl, network]
+  excluded_tags: [dos, brute-force, fuzz, intrusive, exploit, headless, code]
+  require_signed_templates: true
+

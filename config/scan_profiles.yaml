@@ -1,0 +1,23 @@
+profiles:
+  quick:
+    label: Quick Discovery
+    tcp_ports: top-100
+    udp_ports: []
+    service_detection: true
+    vulnerability_checks: false
+    screenshots: false
+  standard:
+    label: Standard External VA
+    tcp_ports: top-1000
+    udp_ports: [53, 123, 161, 500, 4500]
+    service_detection: true
+    vulnerability_checks: true
+    screenshots: false
+  full:
+    label: Full External VA
+    tcp_ports: all
+    udp_ports: [53, 67, 68, 69, 123, 137, 138, 161, 162, 500, 1900, 4500]
+    service_detection: true
+    vulnerability_checks: true
+    screenshots: true
+

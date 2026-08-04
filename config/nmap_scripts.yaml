@@ -1,0 +1,17 @@
+nmap:
+  allowed_scripts:
+    - banner
+    - ssl-cert
+    - ssl-enum-ciphers
+    - ssh2-enum-algos
+    - ftp-anon
+    - smb-protocols
+    - smb2-security-mode
+    - dns-recursion
+    - dns-zone-transfer
+    - ntp-info
+    - snmp-info
+    - http-methods
+    - http-security-headers
+  blocked_categories: [brute, dos, exploit, fuzzer, intrusive]
+

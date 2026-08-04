@@ -1,0 +1,1 @@
+"""Safe external scanner adapters."""

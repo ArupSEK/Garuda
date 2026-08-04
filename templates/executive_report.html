@@ -1,0 +1,6 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Executive VA Report</title><style>body{font:14px Arial;margin:2rem;color:#17202a}h1,h2{color:#123b5d}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd;padding:.4rem;text-align:left}.critical,.high{color:#a00}</style></head><body>
+<h1>External Network VA — Executive Report</h1><p><strong>Scan:</strong> {{ report.scan.public_id }} | <strong>Profile:</strong> {{ report.scan.profile }}</p>
+<p><strong>Scope:</strong> {{ report.scan.targets|join(', ') }}</p><h2>Summary</h2><p>Assets: {{ report.services|map(attribute='ip')|unique|list|length }} | Open services: {{ report.services|length }} | Findings: {{ report.findings|length }}</p>
+<h2>Key findings</h2><table><tr><th>Severity</th><th>Asset</th><th>Title</th><th>Priority</th></tr>{% for f in report.findings %}<tr><td class="{{ f.severity }}">{{ f.severity }}</td><td>{{ f.asset_ip }}</td><td>{{ f.title }}</td><td>{{ f.priority }}</td></tr>{% endfor %}</table>
+<h2>Limitations</h2><p>This report reflects safe, point-in-time external observations. It excludes exploitation, brute force, denial-of-service, and intrusive testing. Findings may require manual validation.</p></body></html>
+
