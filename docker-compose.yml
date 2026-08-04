@@ -16,6 +16,7 @@ services:
     command: ["streamlit", "run", "dashboard/streamlit_app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
     environment:
       API_URL: http://api:8000
+      PYTHONPATH: /app
     depends_on: [api]
     ports: ["${GARUDA_DASHBOARD_PORT:-8501}:8501"]
     restart: unless-stopped

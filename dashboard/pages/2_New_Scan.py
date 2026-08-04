@@ -1,30 +1,85 @@
+"""Authorized assessment launch workflow."""
+
 import streamlit as st
 
 from dashboard.client import api, require_login
-
-require_login()
-st.title("New Authorized Scan")
-st.error(
-    "Only scan systems that you own or have explicit written authorization to assess. Unauthorized scanning may be illegal and may disrupt third-party services."
+from dashboard.ui import (
+    authorization_banner,
+    configure_page,
+    empty_state,
+    logout_control,
+    page_header,
+    panel_heading,
 )
-engagements = [e for e in api("GET", "/api/engagements") if not e["closed"]]
-if not engagements:
-    st.info("Create an active engagement first.")
+
+configure_page("Launch Assessment", "◎")
+require_login()
+logout_control()
+page_header(
+    "Assessment operations",
+    "Launch assessment",
+    "Configure a bounded, rate-controlled assessment against engagement-approved public scope.",
+)
+authorization_banner()
+
+try:
+    engagements = [item for item in api("GET", "/api/engagements") if not item.get("closed")]
+except Exception as exc:
+    st.error(f"Unable to load engagement scope: {exc}")
     st.stop()
-labels = {f"{e['public_id']} — {e['name']}": e["public_id"] for e in engagements}
+
+if not engagements:
+    empty_state(
+        "No active engagement", "Create an authorized engagement before launching an assessment.", "▣"
+    )
+    st.stop()
+
+labels = {f"{item['public_id']} · {item['name']}": item["public_id"] for item in engagements}
+profile_copy = {
+    "quick": "Top 100 TCP ports · service discovery · no vulnerability templates",
+    "standard": "Top 1,000 TCP ports · HTTP/TLS/SSH · safe signed checks",
+    "full": "All TCP ports · detailed service assessment · screenshots when enabled",
+    "custom": "Controlled options within policy-enforced limits",
+}
+
 with st.form("scan"):
-    engagement = st.selectbox("Engagement", labels)
-    targets = st.text_area("Public IPv4 addresses or CIDRs")
-    upload = st.file_uploader("Optional CSV/TXT targets", type=["csv", "txt"])
-    profile = st.selectbox("Profile", ["quick", "standard", "full", "custom"])
-    initiated = st.text_input("Initiated by")
-    rate = st.number_input("Rate limit", 1, 1000, 100)
-    udp = st.checkbox("Common UDP checks")
-    tls = st.checkbox("TLS checks", True)
-    ssh = st.checkbox("SSH checks", True)
-    shots = st.checkbox("Screenshots")
-    authorized = st.checkbox("I own these assets or have explicit written authorization")
-    if st.form_submit_button("Start scan"):
+    scope_col, config_col = st.columns([1.1, 0.9], gap="large")
+    with scope_col:
+        panel_heading("1 · Scope", "Targets are revalidated against the selected engagement")
+        engagement_label = st.selectbox("Authorized engagement", list(labels))
+        targets = st.text_area(
+            "Public IPv4 addresses or CIDRs",
+            placeholder="203.0.113.10\n203.0.113.32/28",
+            height=170,
+        )
+        upload = st.file_uploader("Import CSV or TXT scope", type=["csv", "txt"])
+        initiated = st.text_input("Operator / analyst", placeholder="Name or operator ID")
+    with config_col:
+        panel_heading("2 · Assessment policy", "No arbitrary scanner arguments are accepted")
+        profile = st.radio(
+            "Scan profile",
+            list(profile_copy),
+            format_func=lambda value: value.title(),
+            horizontal=True,
+        )
+        st.caption(profile_copy[profile])
+        rate = st.slider(
+            "Maximum request rate", 10, 500, 100, 10, help="Lower rates reduce operational impact."
+        )
+        opt_a, opt_b = st.columns(2)
+        with opt_a:
+            udp = st.checkbox("Common UDP", help="Runs only the approved UDP set.")
+            tls = st.checkbox("TLS assessment", True)
+        with opt_b:
+            ssh = st.checkbox("SSH assessment", True)
+            shots = st.checkbox("Web screenshots")
+        st.markdown("---")
+        authorized = st.checkbox(
+            "I confirm written authorization for every submitted target.",
+            help="This acknowledgement and operator identity are written to the audit trail.",
+        )
+    submitted = st.form_submit_button("Queue authorized assessment", type="primary", use_container_width=True)
+    if submitted:
         lines = targets.splitlines()
         if upload:
             lines += upload.getvalue().decode("utf-8-sig").replace(",", "\n").splitlines()
@@ -33,7 +88,7 @@ with st.form("scan"):
                 "POST",
                 "/api/scans",
                 json={
-                    "engagement_id": labels[engagement],
+                    "engagement_id": labels[engagement_label],
                     "targets": lines,
                     "profile": profile,
                     "authorized": authorized,
@@ -45,6 +100,6 @@ with st.form("scan"):
                     "enable_screenshots": shots,
                 },
             )
-            st.success(f"Accepted {result['public_id']}")
+            st.success(f"Assessment {result['public_id']} accepted. Open Scan Progress to monitor execution.")
         except Exception as exc:
-            st.error(str(exc))
+            st.error(f"Assessment was not accepted: {exc}")

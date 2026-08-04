@@ -28,7 +28,7 @@ pdf = ["weasyprint>=66,<67"]
 dev = ["pytest>=8.4,<9", "pytest-asyncio>=1.1,<2", "pytest-cov>=6.2,<7", "ruff>=0.12,<1"]
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+include = ["app*", "dashboard*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

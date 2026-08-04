@@ -1,9 +1,10 @@
 FROM python:3.12-slim
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app
 RUN apt-get update && apt-get install -y --no-install-recommends nmap curl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY app ./app
+COPY dashboard ./dashboard
 RUN pip install --no-cache-dir .
 COPY . .
 RUN useradd --create-home --uid 10001 scanner && chown -R scanner:scanner /app
