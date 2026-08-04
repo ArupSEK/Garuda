@@ -21,6 +21,7 @@ dependencies = [
   "pyyaml>=6.0,<7",
   "httpx>=0.28,<1",
   "streamlit>=1.47,<2",
+  "ssh-audit==3.9.0",
 ]
 
 [project.optional-dependencies]

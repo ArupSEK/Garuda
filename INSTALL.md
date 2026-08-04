@@ -28,6 +28,8 @@ For WSL, run these commands inside Ubuntu/Kali WSL. Browse to the printed localh
 
 ## Docker Desktop / Docker Compose
 
+This is the recommended end-user installation. Docker bundles Nmap, Naabu, ProjectDiscovery httpx/Nuclei, a pinned Nuclei template snapshot, dnsx, testssl.sh, ssh-audit, GoWitness, and Chromium. No scanner installation or template update is required on the host.
+
 ```bash
 cp .env.example .env
 # Replace SECRET_KEY in .env with: python -c "import secrets; print(secrets.token_urlsafe(48))"
@@ -36,6 +38,8 @@ docker compose up -d
 docker compose ps
 curl http://127.0.0.1:8000/api/health
 ```
+
+Or use the one-click launcher: `start-docker-windows.bat` on Windows, or `./start-docker-linux.sh` on Linux, Kali, Ubuntu, and WSL. The first build downloads and verifies the pinned scanner assets and can take several minutes. Later starts reuse the built images.
 
 If either host port is occupied, set `GARUDA_API_PORT` or `GARUDA_DASHBOARD_PORT` in `.env`.
 

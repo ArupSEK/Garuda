@@ -9,13 +9,18 @@ class NucleiScanner(ScannerAdapter):
 
     async def scan(self, context: ScanContext) -> list[dict]:
         severities = context.options.get("nuclei_severity", "info,low,medium,high,critical")
-        targets = context.options.get("http_urls") or context.targets
+        targets = context.options.get("nuclei_targets") or context.options.get("http_urls") or context.targets
         target_file = (context.work_dir / "nuclei-targets.txt").resolve()
         target_file.write_text("\n".join(targets) + "\n", encoding="utf-8")
         args = [
             self.executable,
             "-silent",
             "-jsonl",
+            "-no-color",
+            "-disable-update-check",
+            "-disable-unsigned-templates",
+            "-templates",
+            str(context.options.get("nuclei_templates_path", "/home/scanner/nuclei-templates")),
             "-severity",
             severities,
             "-tags",
@@ -28,4 +33,5 @@ class NucleiScanner(ScannerAdapter):
             str(target_file),
         ]
         result = await self.runner.run(context.scan_id, args, timeout=context.options.get("timeout", 1800))
+        (context.work_dir / "nuclei.jsonl").write_text(result.stdout, encoding="utf-8")
         return parse_nuclei_jsonl(result.stdout)

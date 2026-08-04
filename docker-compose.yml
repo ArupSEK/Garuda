@@ -5,6 +5,7 @@ services:
       DATABASE_URL: sqlite:////app/data/garuda.db
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       HTTPX_PATH: httpx-pd
+      NUCLEI_TEMPLATES_PATH: /home/scanner/nuclei-templates
     volumes:
       - ./data:/app/data
       - ./evidence:/app/evidence

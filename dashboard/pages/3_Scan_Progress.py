@@ -56,6 +56,9 @@ except Exception as exc:
     st.stop()
 
 progress = int(data.get("progress", 0))
+coverage = data.get("options", {}).get("coverage", {})
+completed_tools = sum(item.get("status") == "completed" for item in coverage.values())
+coverage_failures = sum(item.get("status") in {"failed", "unavailable"} for item in coverage.values())
 cards = st.columns(4)
 with cards[0]:
     metric_card(
@@ -70,7 +73,13 @@ with cards[1]:
 with cards[2]:
     metric_card("Targets", len(data.get("targets", [])), "Validated public assets", "⬡")
 with cards[3]:
-    metric_card("Profile", str(data.get("profile", "—")).title(), "Policy-controlled execution", "◇")
+    metric_card(
+        "Scanner coverage",
+        f"{completed_tools}/{len(coverage) or 8}",
+        f"{coverage_failures} unavailable or failed",
+        "◇",
+        "danger" if coverage_failures else "positive",
+    )
 
 st.write("")
 panel_heading("Execution pipeline", f"Current stage · {data.get('current_stage', 'Queued')}")
@@ -87,7 +96,21 @@ with overview:
         st.markdown("#### Execution metadata")
         st.write(f"**Started:** {data.get('start_time') or 'Pending'}")
         st.write(f"**Completed:** {data.get('end_time') or 'In progress'}")
-        st.write(f"**Scanner versions:** {data.get('scanner_versions') or 'Collected during execution'}")
+        st.write(f"**Scanner versions:** {data.get('scanner_versions') or 'Not recorded for this assessment'}")
+    st.markdown("#### Scanner coverage")
+    if coverage:
+        coverage_rows = [
+            {
+                "Scanner": name,
+                "Status": details.get("status", "unknown").replace("_", " ").title(),
+                "Evidence": details.get("evidence_count", "—"),
+                "Detail": details.get("detail", ""),
+            }
+            for name, details in coverage.items()
+        ]
+        st.dataframe(coverage_rows, hide_index=True, use_container_width=True)
+    else:
+        st.info("Coverage telemetry was not recorded for this older assessment.")
 with services:
     service_rows = snapshot.get("services", [])
     if service_rows:
@@ -99,14 +122,30 @@ with findings:
     if finding_rows:
         st.dataframe(finding_rows, hide_index=True, use_container_width=True)
     else:
-        empty_state(
-            "No normalized findings yet", "Safe checks may still be running or produced no evidence.", "◇"
-        )
+        nuclei_status = coverage.get("nuclei", {}).get("status")
+        if data.get("status") == "completed" and nuclei_status == "completed":
+            empty_state(
+                "No validated findings",
+                "The enabled vulnerability checks completed without producing a match. Review coverage and service evidence before concluding the asset is secure.",
+                "◇",
+            )
+        else:
+            st.warning(
+                "No findings are available, but vulnerability coverage is incomplete or still running. This is not a clean security result."
+            )
 with evidence:
     if data.get("error_message"):
         st.error(data["error_message"])
     else:
         st.info("No scan errors recorded. Raw evidence is retained under the scan evidence directory.")
+    coverage_issues = {
+        name: details
+        for name, details in coverage.items()
+        if details.get("status") in {"failed", "unavailable"}
+    }
+    if coverage_issues:
+        st.warning("Some scanner coverage was unavailable. Completed evidence remains valid.")
+        st.json(coverage_issues)
 
 if data.get("status") in {"queued", "running"}:
     st.markdown("---")
