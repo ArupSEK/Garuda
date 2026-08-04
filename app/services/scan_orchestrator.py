@@ -9,7 +9,12 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.core.constants import ScanStatus
-from app.core.exceptions import ScanCancelled, ScannerError, ToolUnavailableError
+from app.core.exceptions import (
+    CommandExecutionError,
+    ScanCancelled,
+    ScannerError,
+    ToolUnavailableError,
+)
 from app.database import SessionLocal
 from app.models import Asset, AuditLog, Finding, Scan, Service
 from app.scanners.base import ScanContext
@@ -84,20 +89,20 @@ class ScanOrchestrator:
             self._progress(scan_public_id, 45, "http probing")
             httpx = HttpxScanner(self.settings.httpx_path)
             if httpx.available:
-                await httpx.scan(context)
+                await self._run_optional(scan_public_id, httpx, context)
             self._progress(scan_public_id, 65, "safe vulnerability checks")
             if context.profile != "quick":
                 nuclei = NucleiScanner(self.settings.nuclei_path)
                 if nuclei.available:
-                    raw_findings.extend(await nuclei.scan(context))
+                    raw_findings.extend(await self._run_optional(scan_public_id, nuclei, context))
                 if context.options.get("enable_tls", True):
                     testssl = TestsslScanner(self.settings.testssl_path)
                     if testssl.available:
-                        raw_findings.extend(await testssl.scan(context))
+                        raw_findings.extend(await self._run_optional(scan_public_id, testssl, context))
                 if context.options.get("enable_ssh", True):
                     ssh_audit = SshAuditScanner(self.settings.ssh_audit_path)
                     if ssh_audit.available:
-                        raw_findings.extend(await ssh_audit.scan(context))
+                        raw_findings.extend(await self._run_optional(scan_public_id, ssh_audit, context))
             self._persist_findings(scan_public_id, raw_findings)
             self._finish(scan_public_id, ScanStatus.COMPLETED, None)
         except (asyncio.CancelledError, ScanCancelled):
@@ -112,6 +117,20 @@ class ScanOrchestrator:
             self._finish(
                 scan_public_id, ScanStatus.FAILED, f"Unexpected scan failure: {exc.__class__.__name__}"
             )
+
+    @staticmethod
+    async def _run_optional(scan_id: str, scanner: Any, context: ScanContext) -> list[dict]:
+        """Keep a recoverable optional probe failure from discarding Nmap results."""
+        try:
+            return await scanner.scan(context)
+        except (CommandExecutionError, ToolUnavailableError) as exc:
+            logger.warning(
+                "optional_scanner_failed id=%s scanner=%s error=%s",
+                scan_id,
+                scanner.name,
+                exc,
+            )
+            return []
 
     @staticmethod
     def _confirmed_endpoints(nmap_data: dict[str, Any]) -> dict[str, list[Any]]:

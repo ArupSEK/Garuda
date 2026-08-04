@@ -69,7 +69,8 @@ class CommandRunner:
         if process.returncode in {-15, -9, 1_073_741_515}:
             raise ScanCancelled("Scan process was cancelled")
         if process.returncode != 0:
-            raise CommandExecutionError(f"Scanner exited with {process.returncode}: {stderr[-1000:]}")
+            detail = stderr[-1000:].strip() or stdout[-1000:].strip() or "no diagnostic output"
+            raise CommandExecutionError(f"Scanner exited with {process.returncode}: {detail}")
         return CommandResult(tuple(args), process.returncode or 0, stdout, stderr)
 
     async def cancel(self, job_id: str) -> bool:
