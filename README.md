@@ -34,6 +34,23 @@ Scanner arguments are assembled exclusively inside adapters and executed with `a
 
 ## Quick start
 
+### One-click Docker launchers (recommended)
+
+Windows: double-click `start-docker-windows.bat`, or run:
+
+```bat
+start-docker-windows.bat
+```
+
+Linux, Kali, Ubuntu, or WSL:
+
+```bash
+chmod +x start-docker-linux.sh
+./start-docker-linux.sh
+```
+
+The Docker launchers verify Docker, create `.env` with a cryptographically random secret when needed, build the self-contained images, start both healthy services, and open the dashboard. ProjectDiscovery httpx and Nmap are included in the image; end users do not install scanner binaries manually. Set `GARUDA_NO_BROWSER=1` to suppress browser launch.
+
 ### One-command launchers
 
 Windows PowerShell:
@@ -92,11 +109,10 @@ Tests use fixtures and mocks only; they do not scan external systems.
 ## Docker
 
 ```bash
-cp .env.example .env
-docker compose up --build
+./start-docker-linux.sh
 ```
 
-The base image includes Nmap. Install additional approved scanner binaries in a controlled derivative image for Standard/Full functionality. See [INSTALL.md](INSTALL.md), [AUTHORIZED_USE.md](AUTHORIZED_USE.md), and [SECURITY.md](SECURITY.md).
+On Windows, double-click `start-docker-windows.bat`. The image includes Nmap and ProjectDiscovery httpx. Other optional approved adapters are skipped safely when their binaries are unavailable. See [INSTALL.md](INSTALL.md), [AUTHORIZED_USE.md](AUTHORIZED_USE.md), and [SECURITY.md](SECURITY.md).
 
 ## Screenshots
 
