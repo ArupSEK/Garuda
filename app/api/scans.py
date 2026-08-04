@@ -69,7 +69,7 @@ def list_scans(db: Session = Depends(get_db), _: User = Depends(current_user)) -
 
 
 @router.post("", status_code=202)
-def create_scan(
+async def create_scan(
     payload: ScanCreate,
     request: Request,
     db: Session = Depends(get_db),
