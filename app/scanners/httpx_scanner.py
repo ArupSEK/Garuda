@@ -26,4 +26,5 @@ class HttpxScanner(ScannerAdapter):
             str(target_file),
         ]
         result = await self.runner.run(context.scan_id, args, timeout=context.options.get("timeout", 900))
+        (context.work_dir / "httpx.jsonl").write_text(result.stdout, encoding="utf-8")
         return parse_httpx_json(result.stdout)

@@ -22,4 +22,5 @@ class NaabuScanner(ScannerAdapter):
             str(target_file),
         ]
         result = await self.runner.run(context.scan_id, args, timeout=context.options.get("timeout", 1800))
+        (context.work_dir / "naabu.jsonl").write_text(result.stdout, encoding="utf-8")
         return parse_naabu_json(result.stdout)

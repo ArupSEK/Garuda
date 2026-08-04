@@ -49,7 +49,7 @@ chmod +x start-docker-linux.sh
 ./start-docker-linux.sh
 ```
 
-The Docker launchers verify Docker, create `.env` with a cryptographically random secret when needed, build the self-contained images, start both healthy services, and open the dashboard. ProjectDiscovery httpx and Nmap are included in the image; end users do not install scanner binaries manually. Set `GARUDA_NO_BROWSER=1` to suppress browser launch.
+The Docker launchers verify Docker, create `.env` with a cryptographically random secret when needed, build the self-contained images, start both healthy services, and open the dashboard. The approved scanner suite, browser, and signed template snapshot are included in the image; end users do not install scanner binaries or templates manually. The first build is larger because it creates the complete scanner appliance. Set `GARUDA_NO_BROWSER=1` to suppress browser launch.
 
 ### One-command launchers
 
@@ -97,6 +97,20 @@ Open the API at `http://127.0.0.1:8000`, API documentation at `http://127.0.0.1:
 
 Configuration lives in `config/scan_profiles.yaml`, `config/nmap_scripts.yaml`, `config/nuclei_policy.yaml`, and `config/risk_scoring.yaml`. Review these policies before each production engagement.
 
+## Bundled scanner coverage
+
+The Docker image pins and checksum-verifies the scanner downloads during its build:
+
+| Layer | Bundled component | Purpose |
+| --- | --- | --- |
+| Discovery | Nmap 7.95, Naabu 2.6.1 | Confirm hosts, ports, services, and versions |
+| Web | ProjectDiscovery httpx 1.9.0 | Validate HTTP(S), titles, servers, TLS, and technologies |
+| Vulnerabilities | Nuclei 3.11.0 + templates 10.4.7 | Run signed, allowlisted CVE, exposure, misconfiguration, SSL, and network checks |
+| Protocol | testssl.sh 3.2.4, ssh-audit 3.9.0, dnsx release 1.3.0 | Review TLS, SSH, and DNS evidence |
+| Visual evidence | GoWitness 3.1.1 + Chromium | Capture optional screenshots of Nmap-confirmed web endpoints |
+
+Nuclei excludes `dos`, `brute-force`, `fuzz`, `intrusive`, `exploit`, `headless`, and `code` tags. SSH rate testing is disabled. Arbitrary user-supplied scanner arguments are never accepted. Each scan records tool coverage, failures, evidence counts, and bundled versions so an empty finding list is not presented as proof of security.
+
 ## Testing
 
 ```bash
@@ -112,7 +126,7 @@ Tests use fixtures and mocks only; they do not scan external systems.
 ./start-docker-linux.sh
 ```
 
-On Windows, double-click `start-docker-windows.bat`. The image includes Nmap and ProjectDiscovery httpx. Other optional approved adapters are skipped safely when their binaries are unavailable. See [INSTALL.md](INSTALL.md), [AUTHORIZED_USE.md](AUTHORIZED_USE.md), and [SECURITY.md](SECURITY.md).
+On Windows, double-click `start-docker-windows.bat`. The image includes the complete approved scanner suite listed above. See [INSTALL.md](INSTALL.md), [AUTHORIZED_USE.md](AUTHORIZED_USE.md), [SECURITY.md](SECURITY.md), and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Screenshots
 

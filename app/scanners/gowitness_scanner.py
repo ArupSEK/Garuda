@@ -12,8 +12,26 @@ class GoWitnessScanner(ScannerAdapter):
             return []
         output = context.work_dir / "screenshots"
         output.mkdir(exist_ok=True)
-        args = [self.executable, "scan", "single", "--screenshot-path", str(output)]
-        for url in urls:
-            args += ["--url", url]
+        target_file = (context.work_dir / "gowitness-targets.txt").resolve()
+        jsonl_file = (context.work_dir / "gowitness.jsonl").resolve()
+        target_file.write_text("\n".join(urls) + "\n", encoding="utf-8")
+        args = [
+            self.executable,
+            "scan",
+            "file",
+            "-f",
+            str(target_file),
+            "--screenshot-path",
+            str(output),
+            "--screenshot-format",
+            "png",
+            "--chrome-path",
+            str(context.options.get("chromium_path", "/usr/bin/chromium")),
+            "--log-scan-errors",
+            "--write-jsonl",
+            "--write-jsonl-file",
+            str(jsonl_file),
+            "--quiet",
+        ]
         await self.runner.run(context.scan_id, args, timeout=600)
         return [str(path) for path in output.glob("*.png")]

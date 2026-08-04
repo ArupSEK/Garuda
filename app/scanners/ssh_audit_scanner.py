@@ -10,7 +10,15 @@ class SshAuditScanner(ScannerAdapter):
     async def scan(self, context: ScanContext) -> list[dict]:
         findings = []
         for endpoint in context.options.get("ssh_endpoints", []):
-            args = [self.executable, "-jj", "-p", str(endpoint["port"]), endpoint["ip"]]
+            args = [
+                self.executable,
+                "-j",
+                "-n",
+                "--skip-rate-test",
+                "-p",
+                str(endpoint["port"]),
+                endpoint["ip"],
+            ]
             result = await self.runner.run(context.scan_id, args, timeout=120)
             for item in parse_ssh_audit(result.stdout):
                 item.update(asset_ip=endpoint["ip"], port=endpoint["port"], protocol="ssh")

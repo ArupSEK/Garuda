@@ -28,10 +28,12 @@ class Settings(BaseSettings):
     naabu_path: str = "naabu"
     httpx_path: str = "httpx-pd"
     nuclei_path: str = "nuclei"
+    nuclei_templates_path: Path = Path("/home/scanner/nuclei-templates")
     testssl_path: str = "testssl.sh"
     ssh_audit_path: str = "ssh-audit"
     dnsx_path: str = "dnsx"
     gowitness_path: str = "gowitness"
+    scanner_versions: str = ""
 
     def ensure_directories(self) -> None:
         """Create runtime storage directories."""
