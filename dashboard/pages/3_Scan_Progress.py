@@ -1,18 +1,115 @@
+"""Live scan operations console."""
+
 import streamlit as st
 
 from dashboard.client import api, require_login
+from dashboard.ui import (
+    configure_page,
+    empty_state,
+    logout_control,
+    metric_card,
+    page_header,
+    panel_heading,
+    scan_stages,
+)
 
+configure_page("Scan Operations", "◌")
 require_login()
-st.title("Scan Progress")
-scans = api("GET", "/api/scans")
-ids = [s["public_id"] for s in scans]
-if not ids:
-    st.info("No scans yet")
+logout_control()
+page_header(
+    "Live operations",
+    "Scan operations",
+    "Track assessment stage, progress, coverage, evidence production, and controlled cancellation.",
+    live=True,
+)
+
+try:
+    scans = api("GET", "/api/scans")
+except Exception as exc:
+    st.error(f"Unable to load scan operations: {exc}")
     st.stop()
-scan_id = st.selectbox("Scan", ids)
-if st.button("Refresh") or scan_id:
-    data = api("GET", f"/api/scans/{scan_id}")["scan"]
-    st.progress(data["progress"])
-    st.json(data)
-if st.button("Stop Scan", type="primary"):
-    st.json(api("POST", f"/api/scans/{scan_id}/stop"))
+
+if not scans:
+    empty_state("No scan operations", "Launch an authorized assessment to begin collecting evidence.", "◌")
+    st.stop()
+
+selector, refresh = st.columns([5, 1])
+with selector:
+    scan_id = st.selectbox(
+        "Assessment",
+        [item["public_id"] for item in scans],
+        format_func=lambda value: (
+            f"{value} · {next(item.get('profile', '') for item in scans if item['public_id'] == value).title()}"
+        ),
+    )
+with refresh:
+    st.write("")
+    st.write("")
+    if st.button("Refresh", use_container_width=True):
+        st.rerun()
+
+try:
+    snapshot = api("GET", f"/api/scans/{scan_id}")
+    data = snapshot["scan"]
+except Exception as exc:
+    st.error(f"Unable to retrieve scan state: {exc}")
+    st.stop()
+
+progress = int(data.get("progress", 0))
+cards = st.columns(4)
+with cards[0]:
+    metric_card(
+        "Status",
+        str(data.get("status", "unknown")).upper(),
+        "Current lifecycle state",
+        "●",
+        "positive" if data.get("status") == "completed" else "",
+    )
+with cards[1]:
+    metric_card("Progress", f"{progress}%", data.get("current_stage", "Queued"), "◌")
+with cards[2]:
+    metric_card("Targets", len(data.get("targets", [])), "Validated public assets", "⬡")
+with cards[3]:
+    metric_card("Profile", str(data.get("profile", "—")).title(), "Policy-controlled execution", "◇")
+
+st.write("")
+panel_heading("Execution pipeline", f"Current stage · {data.get('current_stage', 'Queued')}")
+st.progress(progress / 100)
+scan_stages(progress)
+
+overview, services, findings, evidence = st.tabs(["Overview", "Services", "Findings", "Evidence & errors"])
+with overview:
+    meta_left, meta_right = st.columns(2)
+    with meta_left:
+        st.markdown("#### Approved targets")
+        st.code("\n".join(data.get("targets", [])) or "No targets")
+    with meta_right:
+        st.markdown("#### Execution metadata")
+        st.write(f"**Started:** {data.get('start_time') or 'Pending'}")
+        st.write(f"**Completed:** {data.get('end_time') or 'In progress'}")
+        st.write(f"**Scanner versions:** {data.get('scanner_versions') or 'Collected during execution'}")
+with services:
+    service_rows = snapshot.get("services", [])
+    if service_rows:
+        st.dataframe(service_rows, hide_index=True, use_container_width=True)
+    else:
+        empty_state("No confirmed services yet", "Service evidence appears after Nmap confirmation.", "⌁")
+with findings:
+    finding_rows = snapshot.get("findings", [])
+    if finding_rows:
+        st.dataframe(finding_rows, hide_index=True, use_container_width=True)
+    else:
+        empty_state(
+            "No normalized findings yet", "Safe checks may still be running or produced no evidence.", "◇"
+        )
+with evidence:
+    if data.get("error_message"):
+        st.error(data["error_message"])
+    else:
+        st.info("No scan errors recorded. Raw evidence is retained under the scan evidence directory.")
+
+if data.get("status") in {"queued", "running"}:
+    st.markdown("---")
+    if st.button("Stop assessment", type="primary"):
+        result = api("POST", f"/api/scans/{scan_id}/stop")
+        st.warning("Cancellation requested." if result.get("stopped") else "No running process was found.")
