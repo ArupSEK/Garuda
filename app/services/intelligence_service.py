@@ -75,7 +75,7 @@ class VulnerabilityIntelligence:
         return self._entries.get(str(cve_id).strip().upper())
 
     def enrich(self, finding: dict[str, Any]) -> dict[str, Any]:
-        """Return a copy enriched with KEV state and non-sensitive references."""
+        """Return a model-compatible copy enriched with KEV state."""
         enriched = dict(finding)
         cves = _normalise_cves(enriched.get("cve") or [])
         enriched["cve"] = cves
@@ -97,17 +97,11 @@ class VulnerabilityIntelligence:
         if actions and not str(enriched.get("remediation") or "").strip():
             enriched["remediation"] = actions[0]
 
-        enriched["kev_context"] = [
-            {
-                "cve": entry.cve_id,
-                "vendor": entry.vendor_project,
-                "product": entry.product,
-                "date_added": entry.date_added,
-                "due_date": entry.due_date,
-                "known_ransomware_campaign_use": entry.known_ransomware_campaign_use,
-            }
-            for entry in matches
-        ]
+        reason = str(enriched.get("confidence_reason") or "").strip()
+        kev_ids = ", ".join(entry.cve_id for entry in matches)
+        marker = f"CISA KEV match: {kev_ids}."
+        if marker not in reason:
+            enriched["confidence_reason"] = f"{reason} {marker}".strip()
         return enriched
 
     def _load_entries(self) -> dict[str, KevEntry]:
