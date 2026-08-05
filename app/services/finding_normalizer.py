@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
+from app.services.intelligence_service import enrich_finding
 from app.utils.hashing import stable_fingerprint
 from app.utils.redaction import redact
 
@@ -25,7 +26,7 @@ def normalize_finding(raw: dict[str, Any], *, scan_id: str, engagement_id: str) 
     )
     matched = raw.get("matched_at") or raw.get("matched") or raw.get("location") or ""
     finding_id = stable_fingerprint(ip, hostname, port, protocol, rule_id, matched)
-    return {
+    normalized = {
         "finding_id": finding_id,
         "scan_id": scan_id,
         "engagement_id": engagement_id,
@@ -63,3 +64,4 @@ def normalize_finding(raw: dict[str, Any], *, scan_id: str, engagement_id: str) 
         "last_seen": now,
         "status": raw.get("status", "new"),
     }
+    return enrich_finding(normalized)
