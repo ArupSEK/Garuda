@@ -40,6 +40,18 @@ if not exist ".env" (
     )
 )
 
+findstr /X /C:"SECRET_KEY=replace-with-a-long-random-secret" ".env" >nul 2>&1
+if not errorlevel 1 (
+    echo Replacing placeholder application secret...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+        "$secret=[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLower(); $content=Get-Content -Raw -LiteralPath '.env'; $content=$content.Replace('SECRET_KEY=replace-with-a-long-random-secret','SECRET_KEY='+$secret); Set-Content -LiteralPath '.env' -Value $content -Encoding utf8"
+    if errorlevel 1 (
+        echo [ERROR] Could not secure .env.
+        pause
+        exit /b 1
+    )
+)
+
 echo Building and starting Garuda...
 docker compose up -d --build
 if errorlevel 1 (

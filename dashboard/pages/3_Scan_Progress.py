@@ -1,8 +1,11 @@
 """Live scan operations console."""
 
+from datetime import UTC, datetime
+
+import httpx
 import streamlit as st
 
-from dashboard.client import api, require_login
+from dashboard.client import API_URL, api, headers, require_login
 from dashboard.ui import (
     configure_page,
     empty_state,
@@ -57,6 +60,8 @@ except Exception as exc:
 
 progress = int(data.get("progress", 0))
 coverage = data.get("options", {}).get("coverage", {})
+checklist = data.get("options", {}).get("checklist", {})
+target_progress = data.get("options", {}).get("target_progress", {})
 completed_tools = sum(item.get("status") == "completed" for item in coverage.values())
 coverage_failures = sum(item.get("status") in {"failed", "unavailable"} for item in coverage.values())
 cards = st.columns(4)
@@ -97,6 +102,18 @@ with overview:
         st.write(f"**Started:** {data.get('start_time') or 'Pending'}")
         st.write(f"**Completed:** {data.get('end_time') or 'In progress'}")
         st.write(f"**Scanner versions:** {data.get('scanner_versions') or 'Not recorded for this assessment'}")
+        if data.get("start_time"):
+            started = datetime.fromisoformat(str(data["start_time"]))
+            ended = (
+                datetime.fromisoformat(str(data["end_time"]))
+                if data.get("end_time")
+                else datetime.now(UTC)
+            )
+            st.write(f"**Elapsed:** {str(ended - started).split('.')[0]}")
+        st.write(
+            f"**Targets:** {len(target_progress.get('completed', []))} completed · "
+            f"{len(target_progress.get('pending', data.get('targets', [])))} pending"
+        )
     st.markdown("#### Scanner coverage")
     if coverage:
         coverage_rows = [
@@ -111,6 +128,21 @@ with overview:
         st.dataframe(coverage_rows, hide_index=True, use_container_width=True)
     else:
         st.info("Coverage telemetry was not recorded for this older assessment.")
+    st.markdown("#### Security checklist")
+    if checklist:
+        st.dataframe(
+            [
+                {
+                    "Check": name,
+                    "Status": details.get("status"),
+                    "Coverage": details.get("coverage_status"),
+                    "Detail": details.get("detail", ""),
+                }
+                for name, details in checklist.items()
+            ],
+            hide_index=True,
+            use_container_width=True,
+        )
 with services:
     service_rows = snapshot.get("services", [])
     if service_rows:
@@ -146,6 +178,30 @@ with evidence:
     if coverage_issues:
         st.warning("Some scanner coverage was unavailable. Completed evidence remains valid.")
         st.json(coverage_issues)
+    manifest = snapshot.get("evidence_manifest", [])
+    st.markdown("#### Raw scanner evidence")
+    if manifest:
+        for entry in manifest:
+            if int(entry["size"]) > 20 * 1024 * 1024:
+                st.caption(
+                    f"{entry['name']} is {entry['size']} bytes and is too large for an inline "
+                    "dashboard download. Retrieve it through the authenticated evidence API."
+                )
+                continue
+            response = httpx.get(
+                f"{API_URL}/api/scans/{scan_id}/evidence/{entry['name']}",
+                headers=headers(),
+                timeout=30,
+            )
+            if response.is_success:
+                st.download_button(
+                    f"Download {entry['name']} ({entry['size']} bytes)",
+                    response.content,
+                    file_name=entry["name"],
+                    key=f"evidence-{scan_id}-{entry['name']}",
+                )
+    else:
+        st.caption("No raw evidence files are available yet.")
 
 if data.get("status") in {"queued", "running"}:
     st.markdown("---")

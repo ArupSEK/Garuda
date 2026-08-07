@@ -60,7 +60,16 @@ with m3:
 with m4:
     metric_card("New services", len(delta.get("new_ports", [])), "Attack surface growth", "↗")
 
-tabs = st.tabs(["New findings", "Resolved", "Persistent", "Service changes", "Severity shifts"])
+tabs = st.tabs(
+    [
+        "New findings",
+        "Resolved",
+        "Persistent",
+        "Port changes",
+        "Service/version changes",
+        "Finding changes",
+    ]
+)
 with tabs[0]:
     panel_heading("Newly introduced findings", f"Observed in {current_id}, absent from {previous_id}.")
     if delta.get("new"):
@@ -99,5 +108,33 @@ with tabs[3]:
             hide_index=True,
         )
 with tabs[4]:
+    panel_heading("Service and version movement", "Products, protocols, or versions that changed.")
+    st.dataframe(delta.get("service_changed", []), use_container_width=True, hide_index=True)
+    if delta.get("new_management_services"):
+        st.warning("New externally exposed management services require review.")
+        st.dataframe(delta["new_management_services"], use_container_width=True, hide_index=True)
+with tabs[5]:
     panel_heading("Severity movement", "Risk ratings that changed between scans.")
     st.dataframe(delta.get("severity_changed", []), use_container_width=True, hide_index=True)
+    panel_heading("Confidence movement", "Detection confidence changes between scans.")
+    st.dataframe(delta.get("confidence_changed", []), use_container_width=True, hide_index=True)
+    panel_heading("TLS certificate movement", "Certificate and expiry evidence changes.")
+    st.dataframe(delta.get("tls_certificate_changed", []), use_container_width=True, hide_index=True)
+    st.markdown("#### Severity totals")
+    st.json(delta.get("totals", {}))
+    totals = delta.get("totals", {})
+    if totals:
+        st.bar_chart(
+            [
+                {
+                    "Severity": severity.title(),
+                    "Previous": totals.get("previous", {}).get(severity, 0),
+                    "Current": totals.get("current", {}).get(severity, 0),
+                    "New": totals.get("new", {}).get(severity, 0),
+                    "Resolved": totals.get("resolved", {}).get(severity, 0),
+                }
+                for severity in ("critical", "high", "medium", "low", "info")
+            ],
+            x="Severity",
+            y=["Previous", "Current", "New", "Resolved"],
+        )

@@ -4,7 +4,7 @@ Garuda's Docker build retrieves the following pinned upstream components. Each c
 
 | Component | Pinned release or revision | Upstream |
 | --- | --- | --- |
-| Nmap | Debian package (runtime 7.95) | https://nmap.org/ |
+| Nmap | Debian distribution package; actual version recorded per scan | https://nmap.org/ |
 | Naabu | 2.6.1 | https://github.com/projectdiscovery/naabu |
 | ProjectDiscovery httpx | 1.9.0 | https://github.com/projectdiscovery/httpx |
 | Nuclei | 3.11.0 | https://github.com/projectdiscovery/nuclei |

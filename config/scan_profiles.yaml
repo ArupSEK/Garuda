@@ -20,4 +20,11 @@ profiles:
     service_detection: true
     vulnerability_checks: true
     screenshots: true
+  custom:
+    label: Custom Scan
+    tcp_ports: explicit
+    udp_ports: []
+    service_detection: true
+    vulnerability_checks: true
+    screenshots: false
 

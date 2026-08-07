@@ -18,10 +18,19 @@ def parse_httpx_json(text: str) -> list[dict]:
                 "title": item.get("title"),
                 "server": item.get("webserver"),
                 "technologies": item.get("tech", []),
+                "cpe": item.get("cpe", []),
                 "content_type": item.get("content_type"),
                 "content_length": item.get("content_length"),
+                "location": item.get("location"),
+                "favicon_hash": item.get("favicon"),
+                "response_hash": item.get("hash"),
+                "response_time": item.get("time"),
+                "jarm": item.get("jarm"),
                 "tls": item.get("tls"),
                 "cdn": item.get("cdn"),
+                "cdn_name": item.get("cdn_name"),
+                "cname": item.get("cname", []),
+                "asn": item.get("asn"),
             }
         )
     return results

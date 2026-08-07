@@ -13,6 +13,7 @@ External Network VA Scanner (Garuda) is a web-based, non-destructive assessment 
 - Nmap XML, Naabu/httpx/Nuclei JSONL, testssl JSON, ssh-audit JSON, and dnsx JSON parsers.
 - SQLite persistence using PostgreSQL-compatible SQLAlchemy models.
 - Stable finding fingerprints, cross-scanner deduplication, contextual priorities, scan comparison, and HTML/CSV/JSON/JSONL/PDF reports.
+- Official CISA KEV correlation with a failure-tolerant local cache, scanner coverage telemetry, protocol checklists, evidence lineage, and analyst status history.
 - Optional scanners do not prevent startup. Nmap is required to execute a scan because all discovery must be confirmed by Nmap.
 
 ## Architecture
@@ -75,6 +76,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
 cp .env.example .env
+python -c 'from pathlib import Path; import secrets; p=Path(".env"); p.write_text(p.read_text().replace("replace-with-a-long-random-secret", secrets.token_urlsafe(48)))'
 python -c 'from app.database import initialize_database; initialize_database()'
 uvicorn app.main:app --reload
 ```
@@ -91,8 +93,8 @@ Open the API at `http://127.0.0.1:8000`, API documentation at `http://127.0.0.1:
 ## Scan profiles
 
 - **Quick:** top 100 TCP ports, service detection, no vulnerability templates.
-- **Standard:** top 1,000 TCP ports, service/HTTP checks, safe Nuclei policy, and optional TLS/SSH checks.
-- **Full:** all TCP ports and reviewed checks; expect significantly longer execution.
+- **Standard:** top 1,000 TCP ports, approved common UDP ports, service/HTTP checks, TLS/SSH, and safe Nuclei policy.
+- **Full:** all TCP ports, approved UDP ports, reviewed checks, OS fingerprinting, TLS/SSH, and screenshots; expect significantly longer execution.
 - **Custom:** controlled switches only. Arbitrary tool arguments are intentionally unsupported.
 
 Configuration lives in `config/scan_profiles.yaml`, `config/nmap_scripts.yaml`, `config/nuclei_policy.yaml`, and `config/risk_scoring.yaml`. Review these policies before each production engagement.
@@ -103,19 +105,19 @@ The Docker image pins and checksum-verifies the scanner downloads during its bui
 
 | Layer | Bundled component | Purpose |
 | --- | --- | --- |
-| Discovery | Nmap 7.95, Naabu 2.6.1 | Confirm hosts, ports, services, and versions |
+| Discovery | Distribution-packaged Nmap, Naabu 2.6.1 | Confirm hosts, ports, services, and versions |
 | Web | ProjectDiscovery httpx 1.9.0 | Validate HTTP(S), titles, servers, TLS, and technologies |
 | Vulnerabilities | Nuclei 3.11.0 + templates 10.4.7 | Run signed, allowlisted CVE, exposure, misconfiguration, SSL, and network checks |
 | Protocol | testssl.sh 3.2.4, ssh-audit 3.9.0, dnsx release 1.3.0 | Review TLS, SSH, and DNS evidence |
 | Visual evidence | GoWitness 3.1.1 + Chromium | Capture optional screenshots of Nmap-confirmed web endpoints |
 
-Nuclei excludes `dos`, `brute-force`, `fuzz`, `intrusive`, `exploit`, `headless`, and `code` tags. SSH rate testing is disabled. Arbitrary user-supplied scanner arguments are never accepted. Each scan records tool coverage, failures, evidence counts, and bundled versions so an empty finding list is not presented as proof of security.
+Nuclei excludes `dos`, `brute-force`, `fuzz`, `intrusive`, `exploit`, `headless`, and `code` tags. SSH rate testing is disabled. Arbitrary user-supplied scanner arguments are never accepted. Each scan records actual/configured tool versions, coverage, failures, evidence counts, protocol checklist outcomes, and Naabu-to-Nmap confirmation counts so an empty finding list is not presented as proof of security.
 
 ## Testing
 
 ```bash
-pytest
-ruff check app dashboard tests
+python -m pytest
+python -m ruff check .
 ```
 
 Tests use fixtures and mocks only; they do not scan external systems.
@@ -134,7 +136,9 @@ Dashboard, engagement, scan progress, asset, finding, comparison, and report scr
 
 ## Limitations
 
-This is not an exploit framework or proof that an asset is secure. Version-derived CVEs require confidence labeling and manual validation. External observations can be affected by firewalls, CDNs, load balancers, rate limits, and scan windows. CISA KEV/CVE online feed synchronization and Greenbone are Version 2 integration points.
+This is not an exploit framework or proof that an asset is secure. Version-derived CVEs require confidence labeling and manual validation. External observations can be affected by firewalls, CDNs, load balancers, rate limits, and scan windows. The official CISA KEV feed is cached and fails closed when unavailable. Vendor/EOL/fixed-version intelligence, structured scan-window scheduling, Greenbone, and distributed workers remain Version 2 work.
+
+See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for the requirement-by-requirement implementation and limitation matrix.
 
 Contributions must preserve the prohibited-functionality policy; see [CONTRIBUTING.md](CONTRIBUTING.md).
 

@@ -10,7 +10,7 @@ def parse_testssl_json(text: str) -> list[dict[str, Any]]:
     findings = []
     for row in rows:
         severity = str(row.get("severity", "INFO")).lower()
-        if severity in {"ok", "good"}:
+        if severity in {"ok", "good", "info"}:
             continue
         findings.append(
             {

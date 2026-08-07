@@ -1,10 +1,14 @@
 weights:
-  cvss: 0.35
-  internet_exposure: 0.15
-  cisa_kev: 0.20
-  exploit_available: 0.10
+  cvss: 0.30
+  internet_exposure: 0.10
+  cisa_kev: 0.17
+  exploit_available: 0.09
   confidence: 0.10
-  asset_criticality: 0.10
+  asset_criticality: 0.05
+  authentication_requirement: 0.04
+  product_eol: 0.04
+  patch_availability: 0.04
+  business_impact: 0.07
 priority_thresholds:
   P1: 8.5
   P2: 7.0

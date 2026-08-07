@@ -52,10 +52,13 @@ RUN curl --http1.1 --retry 5 --retry-all-errors --connect-timeout 30 -fsSLo /tmp
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app \
     NUCLEI_TEMPLATES_PATH=/home/scanner/nuclei-templates \
-    SCANNER_VERSIONS="nmap=7.95,naabu=2.6.1,httpx=1.9.0,nuclei=3.11.0,nuclei-templates=10.4.7,dnsx-release=1.3.0,testssl.sh=3.2.4,ssh-audit=3.9.0,gowitness=3.1.1"
+    SCANNER_VERSIONS="naabu=2.6.1,httpx=1.9.0,nuclei=3.11.0,nuclei-templates=10.4.7,dnsx=1.3.0,testssl.sh=3.2.4,ssh-audit=3.9.0,gowitness=3.1.1"
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash bsdextrautils ca-certificates chromium curl dnsutils fonts-liberation nmap openssl procps && \
-    rm -rf /var/lib/apt/lists/* && useradd --create-home --uid 10001 scanner
+    bash bsdextrautils ca-certificates chromium curl dnsutils fonts-liberation libcap2-bin \
+    libcairo2 libgdk-pixbuf-2.0-0 libpango-1.0-0 libpangoft2-1.0-0 nmap openssl procps \
+    shared-mime-info && \
+    rm -rf /var/lib/apt/lists/* && useradd --create-home --uid 10001 scanner && \
+    setcap cap_net_raw,cap_net_admin,cap_net_bind_service+eip /usr/bin/nmap
 COPY --from=scanner-assets /assets/bin/ /usr/local/bin/
 COPY --from=scanner-assets /assets/nuclei-templates /home/scanner/nuclei-templates
 COPY --from=scanner-assets /assets/testssl /opt/testssl
@@ -64,7 +67,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY app ./app
 COPY dashboard ./dashboard
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir ".[pdf]"
 COPY --chown=scanner:scanner . .
 RUN chown scanner:scanner /app
 USER scanner

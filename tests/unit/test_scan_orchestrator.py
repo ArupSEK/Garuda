@@ -41,9 +41,32 @@ def test_confirmed_endpoints_feed_only_confirmed_services_to_follow_up_tools():
         }
     )
     assert result["http_urls"] == ["https://203.0.113.10:443"]
-    assert result["ssh_endpoints"] == [{"ip": "203.0.113.10", "port": 22}]
+    assert result["ssh_endpoints"] == [
+        {"ip": "203.0.113.10", "port": 22, "protocol": "ssh"}
+    ]
     assert set(result["nuclei_targets"]) == {
         "https://203.0.113.10:443",
         "203.0.113.10:443",
         "203.0.113.10:22",
     }
+
+
+def test_confirmed_starttls_service_is_routed_to_testssl():
+    result = ScanOrchestrator._confirmed_endpoints(
+        {
+            "assets": [
+                {
+                    "ip": "203.0.113.20",
+                    "services": [{"port": 25, "protocol": "smtp"}],
+                }
+            ]
+        }
+    )
+    assert result["tls_endpoints"] == [
+        {
+            "ip": "203.0.113.20",
+            "port": 25,
+            "protocol": "smtp",
+            "starttls": "smtp",
+        }
+    ]

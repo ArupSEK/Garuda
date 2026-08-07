@@ -29,6 +29,8 @@ class NucleiScanner(ScannerAdapter):
             "dos,brute-force,fuzz,intrusive,exploit,headless,code",
             "-rate-limit",
             str(context.options.get("rate_limit", 50)),
+            "-concurrency",
+            str(context.options.get("concurrency", 2)),
             "-l",
             str(target_file),
         ]

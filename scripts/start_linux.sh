@@ -25,6 +25,12 @@ if [[ ! -f .env ]]; then
   echo "Created .env with a random application secret."
 fi
 
+if grep -q '^SECRET_KEY=replace-with-a-long-random-secret$' .env; then
+  APP_SECRET="$($VENV_PYTHON -c 'import secrets; print(secrets.token_urlsafe(48))')"
+  "$VENV_PYTHON" -c 'from pathlib import Path; import sys; p=Path(".env"); p.write_text(p.read_text().replace("SECRET_KEY=replace-with-a-long-random-secret", "SECRET_KEY=" + sys.argv[1]))' "$APP_SECRET"
+  echo "Replaced placeholder application secret."
+fi
+
 read_setting() {
   local name="$1" default="$2" current
   current="${!name:-}"
@@ -87,4 +93,3 @@ if [[ "${NO_BROWSER:-0}" != "1" ]]; then
     open "$DASHBOARD_URL"
   fi
 fi
-

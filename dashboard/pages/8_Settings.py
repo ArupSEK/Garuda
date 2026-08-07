@@ -1,9 +1,8 @@
 """Read-only platform controls and operational posture."""
 
-import httpx
 import streamlit as st
 
-from dashboard.client import API_URL, headers, require_login
+from dashboard.client import API_URL, api, require_login
 from dashboard.ui import configure_page, logout_control, metric_card, page_header, panel_heading
 
 configure_page("Platform Controls", "08")
@@ -17,17 +16,14 @@ page_header(
 )
 
 try:
-    health = httpx.get(f"{API_URL}/health", timeout=5)
-    api_online = health.is_success
-except httpx.HTTPError:
+    health = api("GET", "/api/health")
+    runtime = api("GET", "/api/settings")
+    api_online = bool(health.get("ok"))
+except Exception:
     api_online = False
+    runtime = {}
 
-authenticated = False
-if api_online:
-    try:
-        authenticated = httpx.get(f"{API_URL}/api/auth/me", headers=headers(), timeout=5).is_success
-    except httpx.HTTPError:
-        pass
+authenticated = bool(runtime)
 
 m1, m2, m3, m4 = st.columns(4)
 with m1:
@@ -57,6 +53,8 @@ with left:
         panel_heading("Runtime connection", "Read-only deployment information for troubleshooting.")
         st.text_input("Garuda API endpoint", value=API_URL, disabled=True)
         st.caption("This value is supplied by the API_URL environment variable at deployment time.")
+        if runtime:
+            st.json(runtime.get("limits", {}), expanded=False)
         if st.button("Recheck connection", use_container_width=True):
             st.rerun()
 
@@ -78,6 +76,16 @@ with right:
         st.info(
             "Scanner paths, credentials, network policy, target limits, and YAML profiles are managed through reviewed environment and configuration files."
         )
+        if runtime:
+            tool_rows = [
+                {
+                    "Scanner": name,
+                    "Path": details.get("path"),
+                    "Status": "Installed" if details.get("available") else "Missing",
+                }
+                for name, details in runtime.get("tools", {}).items()
+            ]
+            st.dataframe(tool_rows, hide_index=True, use_container_width=True)
         st.markdown(
             """
             **Deployment-owned controls**
@@ -85,7 +93,7 @@ with right:
             | Control | Source |
             |---|---|
             | Scanner binaries | Environment variables |
-            | Scan profiles | `config/scan_profiles.yml` |
+            | Scan profiles | `config/scan_profiles.yaml` |
             | Target limits | Server configuration |
             | Secrets | `.env` / secret manager |
             | Retention paths | Deployment volumes |
@@ -97,4 +105,9 @@ with right:
         st.checkbox("TLS termination configured", disabled=True)
         st.checkbox("Secrets moved to a managed store", disabled=True)
         st.checkbox("Backups and evidence retention validated", disabled=True)
+        if runtime:
+            st.caption(
+                f"Configured retention: {runtime.get('retention_days')} days · "
+                f"Logging: {runtime.get('logging_level')}"
+            )
         st.caption("These controls are deployment responsibilities and are intentionally read-only here.")

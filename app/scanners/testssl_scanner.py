@@ -16,15 +16,22 @@ class TestsslScanner(ScannerAdapter):
             args = [
                 self.executable,
                 "--quiet",
+                "--ids-friendly",
                 "--warnings",
                 "off",
                 "--jsonfile",
                 str(output),
-                f"{target}:{port}",
             ]
+            if endpoint.get("starttls"):
+                args.extend(["--starttls", str(endpoint["starttls"])])
+            args.append(f"{target}:{port}")
             await self.runner.run(context.scan_id, args, timeout=context.options.get("timeout", 900))
             parsed = parse_testssl_json(output.read_text(encoding="utf-8"))
             for item in parsed:
-                item.update(asset_ip=target, port=port, protocol="tls")
+                item.update(
+                    asset_ip=target,
+                    port=port,
+                    protocol=endpoint.get("protocol") or "tls",
+                )
             findings.extend(parsed)
         return findings

@@ -1,11 +1,31 @@
 services:
   api:
     build: .
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
     environment:
-      DATABASE_URL: sqlite:////app/data/garuda.db
+      ENVIRONMENT: production
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/garuda.db}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-480}
+      MAX_CIDR_PREFIX: ${MAX_CIDR_PREFIX:-24}
+      MAX_TARGETS: ${MAX_TARGETS:-256}
+      SCAN_CONCURRENCY: ${SCAN_CONCURRENCY:-2}
+      DEFAULT_RATE_LIMIT: ${DEFAULT_RATE_LIMIT:-100}
+      COMMAND_TIMEOUT: ${COMMAND_TIMEOUT:-1800}
+      EVIDENCE_DIR: /app/evidence
+      REPORT_DIR: /app/reports
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       HTTPX_PATH: httpx-pd
       NUCLEI_TEMPLATES_PATH: /home/scanner/nuclei-templates
+      CISA_KEV_URL: ${CISA_KEV_URL:-https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json}
+      CISA_KEV_CACHE_PATH: /app/data/cisa_kev.json
+      INTELLIGENCE_REFRESH_HOURS: ${INTELLIGENCE_REFRESH_HOURS:-24}
+      INTELLIGENCE_TIMEOUT: ${INTELLIGENCE_TIMEOUT:-15}
+      RETENTION_DAYS: ${RETENTION_DAYS:-365}
     volumes:
       - ./data:/app/data
       - ./evidence:/app/evidence
@@ -19,7 +39,11 @@ services:
     environment:
       API_URL: http://api:8000
       PYTHONPATH: /app
-    depends_on: [api]
+    depends_on:
+      api:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8501/_stcore/health"]
       interval: 30s

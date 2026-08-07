@@ -1,0 +1,54 @@
+{
+  "notice": "Synthetic example only. No external scan was performed.",
+  "engagement": {
+    "public_id": "ENG-SAMPLE",
+    "name": "Documentation Perimeter Review",
+    "customer": "Example Organization",
+    "authorization_reference": "SAMPLE-NOT-AUTHORIZATION",
+    "approved_targets": ["192.0.2.10/32"]
+  },
+  "scan": {
+    "public_id": "SCAN-SAMPLE",
+    "profile": "standard",
+    "status": "completed",
+    "targets": ["192.0.2.10"]
+  },
+  "assets": [
+    {
+      "ip": "192.0.2.10",
+      "hostname": "portal.example.test",
+      "reachability": "up",
+      "risk_score": 3.4
+    }
+  ],
+  "services": [
+    {
+      "ip": "192.0.2.10",
+      "port": 443,
+      "transport": "tcp",
+      "protocol": "https",
+      "product": "example-web-server",
+      "version": "sample",
+      "encryption": true,
+      "confidence": "high"
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "synthetic-stable-fingerprint",
+      "asset_ip": "192.0.2.10",
+      "port": 443,
+      "protocol": "https",
+      "title": "Synthetic security-header observation",
+      "severity": "low",
+      "priority": "P4",
+      "confidence": "confirmed",
+      "cve": [],
+      "cisa_kev": false,
+      "scanner": "nuclei",
+      "evidence": "Redacted synthetic evidence",
+      "remediation": "Apply the documented response-header policy.",
+      "status": "new"
+    }
+  ]
+}

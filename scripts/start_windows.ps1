@@ -43,6 +43,14 @@ if (-not (Test-Path -LiteralPath $EnvFile)) {
     Write-Host "Created .env with a random application secret."
 }
 
+$ExistingContent = Get-Content -Raw -LiteralPath $EnvFile
+if ($ExistingContent -match '(?m)^SECRET_KEY=replace-with-a-long-random-secret\s*$') {
+    $Secret = & $VenvPython -c "import secrets; print(secrets.token_urlsafe(48))"
+    $ExistingContent = $ExistingContent -replace "SECRET_KEY=replace-with-a-long-random-secret", "SECRET_KEY=$Secret"
+    Set-Content -LiteralPath $EnvFile -Value $ExistingContent -Encoding utf8
+    Write-Host "Replaced placeholder application secret."
+}
+
 function Get-AppSetting {
     param([string]$Name, [string]$Default)
     $ProcessValue = [Environment]::GetEnvironmentVariable($Name)
@@ -116,4 +124,3 @@ Write-Host "To stop it: Stop-Process -Id (Get-Content logs\api.pid),(Get-Content
 if (-not $NoBrowser) {
     Start-Process $DashboardUrl
 }
-

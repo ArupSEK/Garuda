@@ -20,9 +20,29 @@ class DnsxScanner(ScannerAdapter):
             str(target_file),
         ]
         if hostnames:
-            args += ["-a", "-aaaa", "-cname", "-ns", "-mx", "-txt", "-soa", "-caa"]
+            args += [
+                "-a",
+                "-aaaa",
+                "-cname",
+                "-ns",
+                "-mx",
+                "-txt",
+                "-soa",
+                "-srv",
+                "-caa",
+                "-axfr",
+                "-auto-wildcard",
+            ]
         else:
             args += ["-ptr"]
+        args += [
+            "-threads",
+            str(context.options.get("concurrency", 2)),
+            "-rate-limit",
+            str(context.options.get("rate_limit", 100)),
+            "-disable-update-check",
+            "-no-color",
+        ]
         result = await self.runner.run(context.scan_id, args, timeout=300)
         (context.work_dir / "dnsx.jsonl").write_text(result.stdout, encoding="utf-8")
         return parse_dnsx_json(result.stdout)

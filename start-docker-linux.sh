@@ -41,6 +41,24 @@ if [[ ! -f .env ]]; then
   chmod 600 .env
 fi
 
+if grep -q '^SECRET_KEY=replace-with-a-long-random-secret$' .env; then
+  echo "Replacing placeholder application secret..."
+  if command -v openssl >/dev/null 2>&1; then
+    APP_SECRET="$(openssl rand -hex 32)"
+  else
+    APP_SECRET="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
+  fi
+  TEMP_ENV=".env.tmp.$$"
+  trap 'rm -f "$TEMP_ENV"' EXIT
+  awk -v secret="$APP_SECRET" '
+    /^SECRET_KEY=/ { print "SECRET_KEY=" secret; next }
+    { print }
+  ' .env > "$TEMP_ENV"
+  mv "$TEMP_ENV" .env
+  trap - EXIT
+  chmod 600 .env
+fi
+
 echo "Building and starting Garuda..."
 docker compose up -d --build
 
