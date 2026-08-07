@@ -2,8 +2,10 @@
 
 import secrets
 from datetime import date
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -30,31 +32,94 @@ def scan_dict(item: Scan) -> dict:
 
 def snapshot(db: Session, scan: Scan) -> dict:
     services = db.execute(
-        select(Asset.ip, Service.port, Service.transport, Service.protocol, Service.version)
+        select(
+            Asset.ip,
+            Service.port,
+            Service.transport,
+            Service.protocol,
+            Service.product,
+            Service.version,
+            Service.cpe,
+            Service.encryption,
+            Service.confidence,
+            Service.source_scanner,
+        )
         .join(Service, Service.asset_id == Asset.id)
         .where(Asset.scan_id == scan.id)
     ).all()
     findings = db.scalars(select(Finding).where(Finding.scan_id == scan.id)).all()
+    assets = db.scalars(select(Asset).where(Asset.scan_id == scan.id)).all()
+    engagement = scan.engagement
+    evidence_directory = get_settings().evidence_dir / scan.public_id
+    evidence_manifest = []
+    if evidence_directory.is_dir():
+        evidence_manifest = [
+            {"name": path.name, "size": path.stat().st_size}
+            for path in sorted(evidence_directory.iterdir())
+            if path.is_file()
+        ]
     return {
         "scan": scan_dict(scan),
+        "engagement": {
+            "public_id": engagement.public_id,
+            "name": engagement.name,
+            "customer": engagement.customer,
+            "authorization_reference": engagement.authorization_reference,
+            "start_date": engagement.start_date,
+            "expiry_date": engagement.expiry_date,
+            "approved_targets": engagement.approved_targets,
+            "exclusions": engagement.exclusions,
+            "scan_window": engagement.scan_window,
+            "emergency_contact": engagement.emergency_contact,
+        },
+        "assets": [
+            {
+                "ip": asset.ip,
+                "hostname": asset.hostname,
+                "reachability": asset.reachability,
+                "operating_system": asset.operating_system,
+                "asn": asset.asn,
+                "risk_score": asset.risk_score,
+                "last_scanned": asset.last_scanned,
+            }
+            for asset in assets
+        ],
         "services": [
             {
                 "ip": row.ip,
                 "port": row.port,
                 "transport": row.transport,
                 "protocol": row.protocol,
+                "product": row.product,
                 "version": row.version,
+                "cpe": row.cpe,
+                "encryption": row.encryption,
+                "confidence": row.confidence,
+                "source_scanner": row.source_scanner,
             }
             for row in services
         ],
         "findings": [
             {
-                column.name: getattr(item, column.name)
-                for column in item.__table__.columns
-                if column.name not in {"id", "scan_id"}
+                **{
+                    column.name: getattr(item, column.name)
+                    for column in item.__table__.columns
+                    if column.name not in {"id", "scan_id"}
+                },
+                "evidence_items": [
+                    {
+                        "scanner": evidence.scanner,
+                        "evidence_type": evidence.evidence_type,
+                        "file_location": evidence.file_location,
+                        "redacted_content": evidence.redacted_content,
+                        "created_at": evidence.created_at,
+                    }
+                    for evidence in item.evidence_items
+                ],
             }
             for item in findings
         ],
+        "evidence_manifest": evidence_manifest,
     }
 
 
@@ -93,12 +158,47 @@ async def create_scan(
             engagement.exclusions,
             max_cidr_prefix=settings.max_cidr_prefix,
         )
+        submitted_hostnames: dict[str, str] = {}
+        for raw_ip, hostname in payload.hostnames.items():
+            hostname_targets = expand_targets(
+                [raw_ip],
+                max_cidr_prefix=settings.max_cidr_prefix,
+                max_targets=1,
+            )
+            normalized_ip = hostname_targets[0]
+            if normalized_ip not in targets:
+                raise ValueError(f"Hostname association is outside the submitted target set: {raw_ip}")
+            submitted_hostnames[normalized_ip] = hostname
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     public_id = f"SCAN-{date.today():%Y%m%d}-{secrets.token_hex(2).upper()}"
     options = payload.model_dump(
         exclude={"engagement_id", "targets", "profile", "authorized", "initiated_by"}
     )
+    if "rate_limit" not in payload.model_fields_set:
+        options["rate_limit"] = settings.default_rate_limit
+    if "timeout" not in payload.model_fields_set:
+        options["timeout"] = settings.command_timeout
+    if payload.profile == "quick":
+        options.update(enable_udp=False, enable_tls=False, enable_ssh=False, enable_screenshots=False)
+    elif payload.profile == "standard":
+        options.update(
+            enable_udp=True,
+            enable_tls=True,
+            enable_ssh=True,
+            enable_screenshots=False,
+            nuclei_severity="info,low,medium,high,critical",
+        )
+    elif payload.profile == "full":
+        options.update(
+            enable_udp=True,
+            enable_tls=True,
+            enable_ssh=True,
+            enable_screenshots=True,
+            enable_os_detection=True,
+            nuclei_severity="info,low,medium,high,critical",
+        )
+    options["hostnames"] = submitted_hostnames
     scan = Scan(
         public_id=public_id,
         engagement_id=engagement.id,
@@ -130,6 +230,23 @@ def get_scan(scan_id: str, db: Session = Depends(get_db), _: User = Depends(curr
     if not scan:
         raise HTTPException(404, "Scan not found")
     return snapshot(db, scan)
+
+
+@router.get("/{scan_id}/evidence/{filename}")
+def download_evidence(
+    scan_id: str,
+    filename: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(current_user),
+) -> FileResponse:
+    scan = db.scalar(select(Scan).where(Scan.public_id == scan_id))
+    if not scan or Path(filename).name != filename:
+        raise HTTPException(404, "Evidence file not found")
+    directory = (get_settings().evidence_dir / scan.public_id).resolve()
+    path = (directory / filename).resolve()
+    if path.parent != directory or not path.is_file():
+        raise HTTPException(404, "Evidence file not found")
+    return FileResponse(path, filename=filename, media_type="application/octet-stream")
 
 
 @router.post("/{scan_id}/stop")

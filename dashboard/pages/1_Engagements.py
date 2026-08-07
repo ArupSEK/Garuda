@@ -75,6 +75,61 @@ with portfolio:
             st.write(f"**Scan window:** {selected.get('scan_window') or 'Not restricted'}")
             st.write(f"**Emergency contact:** {selected.get('emergency_contact') or 'Not recorded'}")
             st.write(f"**Exclusions:** {', '.join(selected.get('exclusions', [])) or 'None'}")
+        if not selected.get("closed"):
+            with st.expander("Edit or close engagement"):
+                with st.form(f"edit-{selected_id}"):
+                    edit_name = st.text_input("Engagement name", value=selected.get("name", ""))
+                    edit_customer = st.text_input("Customer", value=selected.get("customer", ""))
+                    edit_auth = st.text_input(
+                        "Authorization reference", value=selected.get("authorization_reference", "")
+                    )
+                    edit_scope = st.text_area(
+                        "Approved scope", value="\n".join(selected.get("approved_targets", []))
+                    )
+                    edit_exclusions = st.text_area(
+                        "Exclusions", value="\n".join(selected.get("exclusions", []))
+                    )
+                    edit_window = st.text_input(
+                        "Permitted scan window", value=selected.get("scan_window") or ""
+                    )
+                    edit_contact = st.text_input(
+                        "Emergency contact", value=selected.get("emergency_contact") or ""
+                    )
+                    edit_start = st.date_input(
+                        "Authorization starts", value=datetime.fromisoformat(selected["start_date"]).date()
+                    )
+                    edit_expiry = st.date_input(
+                        "Authorization expires", value=datetime.fromisoformat(selected["expiry_date"]).date()
+                    )
+                    save = st.form_submit_button("Save engagement", type="primary")
+                    if save:
+                        try:
+                            api(
+                                "PATCH",
+                                f"/api/engagements/{selected_id}",
+                                json={
+                                    "name": edit_name,
+                                    "customer": edit_customer,
+                                    "authorization_reference": edit_auth,
+                                    "approved_targets": edit_scope.splitlines(),
+                                    "exclusions": edit_exclusions.splitlines(),
+                                    "scan_window": edit_window or None,
+                                    "emergency_contact": edit_contact or None,
+                                    "start_date": str(edit_start),
+                                    "expiry_date": str(edit_expiry),
+                                },
+                            )
+                            st.success("Engagement updated and audited.")
+                            st.rerun()
+                        except Exception as exc:
+                            st.error(f"Engagement could not be updated: {exc}")
+                if st.button("Close engagement", key=f"close-{selected_id}"):
+                    try:
+                        api("POST", f"/api/engagements/{selected_id}/close")
+                        st.success("Engagement closed.")
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(f"Engagement could not be closed: {exc}")
     else:
         empty_state(
             "No engagements registered", "Create the first authorization-backed engagement to begin.", "▣"

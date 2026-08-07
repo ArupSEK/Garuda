@@ -8,7 +8,12 @@ class NaabuScanner(ScannerAdapter):
     name = "naabu"
 
     async def scan(self, context: ScanContext) -> list[dict]:
-        ports = "-top-ports", "100" if context.profile == "quick" else "1000"
+        if context.profile == "full":
+            ports = ("-top-ports", "full")
+        elif context.profile == "custom" and context.options.get("tcp_ports"):
+            ports = ("-p", str(context.options["tcp_ports"]))
+        else:
+            ports = ("-top-ports", "100" if context.profile == "quick" else "1000")
         target_file = (context.work_dir / "targets.txt").resolve()
         target_file.write_text("\n".join(context.targets) + "\n", encoding="utf-8")
         args = [
@@ -17,6 +22,8 @@ class NaabuScanner(ScannerAdapter):
             "-json",
             "-rate",
             str(context.options.get("rate_limit", 100)),
+            "-c",
+            str(context.options.get("concurrency", 2)),
             *ports,
             "-list",
             str(target_file),

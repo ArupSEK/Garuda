@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app import __version__
-from app.api import assets, auth, engagements, findings, reports, scans
+from app.api import assets, auth, engagements, findings, reports, scans, settings
 from app.config import get_settings
 from app.core.logging import configure_logging
 from app.database import initialize_database
@@ -21,7 +21,15 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="External Network VA Scanner", version=__version__, lifespan=lifespan)
-for router in (auth.router, engagements.router, scans.router, assets.router, findings.router, reports.router):
+for router in (
+    auth.router,
+    engagements.router,
+    scans.router,
+    assets.router,
+    findings.router,
+    reports.router,
+    settings.router,
+):
     app.include_router(router)
 
 

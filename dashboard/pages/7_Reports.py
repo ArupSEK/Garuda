@@ -36,7 +36,7 @@ if not scans:
     st.stop()
 
 format_info = {
-    "pdf": ("Executive PDF", "Polished, portable stakeholder deliverable"),
+    "pdf": ("PDF report", "Polished, portable stakeholder deliverable"),
     "html": ("Interactive HTML", "Browser-ready report with rich navigation"),
     "csv": ("CSV workbook feed", "Finding data for analyst workflows"),
     "json": ("Structured JSON", "Complete machine-readable assessment object"),
@@ -47,8 +47,45 @@ left, right = st.columns([1.1, 0.9], gap="large")
 with left:
     with st.container(border=True):
         panel_heading("Build deliverable", "Select a source assessment and audience-ready format.")
-        scan_id = st.selectbox("Assessment", [scan["public_id"] for scan in scans])
-        fmt = st.selectbox("Output format", list(format_info), format_func=lambda key: format_info[key][0])
+        report_modes = ["Scan report", "Comparison report"] if len(scans) > 1 else ["Scan report"]
+        report_mode = st.radio("Deliverable", report_modes, horizontal=True)
+        scan_id = st.selectbox(
+            "Assessment" if report_mode == "Scan report" else "Current assessment",
+            [scan["public_id"] for scan in scans],
+        )
+        previous_id = None
+        if report_mode == "Comparison report":
+            previous_id = st.selectbox(
+                "Previous assessment",
+                [scan["public_id"] for scan in scans if scan["public_id"] != scan_id],
+            )
+        available_formats = (
+            ["pdf", "html", "csv", "json"]
+            if report_mode == "Comparison report"
+            else list(format_info)
+        )
+        fmt = st.selectbox(
+            "Output format",
+            available_formats,
+            format_func=lambda key: format_info[key][0],
+        )
+        report_type = st.selectbox(
+            "Report audience",
+            ["executive", "technical"],
+            format_func=lambda value: value.title(),
+            disabled=fmt not in {"pdf", "html"} or report_mode == "Comparison report",
+        )
+        dataset = st.selectbox(
+            "Data set",
+            ["full", "findings", "assets", "services"],
+            format_func=lambda value: {
+                "full": "Complete assessment",
+                "findings": "Vulnerability report",
+                "assets": "Asset inventory",
+                "services": "Open-port inventory",
+            }[value],
+            disabled=fmt in {"pdf", "html"} or report_mode == "Comparison report",
+        )
         st.caption(format_info[fmt][1])
         include_evidence = st.checkbox("Include technical evidence", value=True, disabled=True)
         generate = st.button("Generate secure report", type="primary", use_container_width=True)
@@ -72,7 +109,16 @@ with right:
 if generate:
     with st.spinner("Compiling assessment deliverable…"):
         try:
-            response = httpx.get(f"{API_URL}/api/reports/{scan_id}.{fmt}", headers=headers(), timeout=60)
+            response = httpx.get(
+                (
+                    f"{API_URL}/api/reports/compare/{previous_id}/{scan_id}.{fmt}"
+                    if report_mode == "Comparison report"
+                    else f"{API_URL}/api/reports/{scan_id}.{fmt}"
+                ),
+                params={"report_type": report_type, "dataset": dataset},
+                headers=headers(),
+                timeout=60,
+            )
         except httpx.HTTPError as exc:
             st.error(f"Report service unavailable: {exc}")
         else:
@@ -81,7 +127,11 @@ if generate:
                 st.download_button(
                     "Download report",
                     response.content,
-                    file_name=f"garuda-{scan_id}.{fmt}",
+                    file_name=(
+                        f"garuda-comparison-{previous_id}-{scan_id}.{fmt}"
+                        if report_mode == "Comparison report"
+                        else f"garuda-{scan_id}-{report_type}-{dataset}.{fmt}"
+                    ),
                     mime=response.headers.get("content-type"),
                     type="primary",
                 )

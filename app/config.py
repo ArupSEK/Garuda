@@ -3,7 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,6 +34,25 @@ class Settings(BaseSettings):
     dnsx_path: str = "dnsx"
     gowitness_path: str = "gowitness"
     scanner_versions: str = ""
+    cisa_kev_url: str = (
+        "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    )
+    cisa_kev_cache_path: Path = Path("data/cisa_kev.json")
+    intelligence_refresh_hours: int = Field(24, ge=1, le=168)
+    intelligence_timeout: int = Field(15, ge=2, le=60)
+    retention_days: int = Field(365, ge=1, le=3650)
+
+    @model_validator(mode="after")
+    def production_secret_is_strong(self):
+        insecure = {
+            "development-only-change-me",
+            "replace-with-a-long-random-secret",
+        }
+        if self.environment.lower() == "production" and (
+            self.secret_key in insecure or len(self.secret_key) < 32
+        ):
+            raise ValueError("Production SECRET_KEY must be a random value of at least 32 characters")
+        return self
 
     def ensure_directories(self) -> None:
         """Create runtime storage directories."""

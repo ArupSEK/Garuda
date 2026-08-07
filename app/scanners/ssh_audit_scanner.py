@@ -20,6 +20,9 @@ class SshAuditScanner(ScannerAdapter):
                 endpoint["ip"],
             ]
             result = await self.runner.run(context.scan_id, args, timeout=120)
+            (context.work_dir / f"ssh-audit-{endpoint['ip']}-{endpoint['port']}.json").write_text(
+                result.stdout, encoding="utf-8"
+            )
             for item in parse_ssh_audit(result.stdout):
                 item.update(asset_ip=endpoint["ip"], port=endpoint["port"], protocol="ssh")
                 findings.append(item)

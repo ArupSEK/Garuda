@@ -1,0 +1,12 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>External VA Scan Comparison</title>
+<style>body{font:13px Arial;margin:2rem;color:#17202a}h1,h2{color:#123b5d}table{border-collapse:collapse;width:100%;margin-bottom:1rem}td,th{border:1px solid #ccd;padding:.4rem;text-align:left}.high,.critical{color:#a00;font-weight:bold}</style></head><body>
+<h1>External Network Vulnerability Assessment — Scan Comparison</h1>
+<p><strong>Previous:</strong> {{report.previous_scan_id}} · <strong>Current:</strong> {{report.current_scan_id}}</p>
+<h2>Finding movement</h2><table><tr><th>Category</th><th>Total</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Info</th></tr>
+{% for category in ['previous','current','new','resolved'] %}<tr><td>{{category|replace('_',' ')|title}}</td><td>{{report.totals[category].values()|sum}}</td>{% for severity in ['critical','high','medium','low','info'] %}<td>{{report.totals[category][severity]}}</td>{% endfor %}</tr>{% endfor %}</table>
+{% for category in ['new','still_open','resolved','reopened'] %}<h2>{{category|replace('_',' ')|title}} findings</h2><table><tr><th>Severity</th><th>Asset</th><th>Port</th><th>Finding</th><th>Confidence</th></tr>{% for item in report[category] %}<tr><td class="{{item.severity}}">{{item.severity|upper}}</td><td>{{item.asset_ip}}</td><td>{{item.port or ''}}</td><td>{{item.title}}</td><td>{{item.confidence}}</td></tr>{% else %}<tr><td colspan="5">None</td></tr>{% endfor %}</table>{% endfor %}
+<h2>Exposure changes</h2><p><strong>New ports:</strong> {{report.new_ports|length}} · <strong>Closed ports:</strong> {{report.closed_ports|length}} · <strong>Service/version changes:</strong> {{report.service_changed|length}} · <strong>New management services:</strong> {{report.new_management_services|length}}</p>
+<table><tr><th>Asset</th><th>Port</th><th>Protocol</th><th>Previous</th><th>Current</th></tr>{% for item in report.service_changed %}<tr><td>{{item.ip}}</td><td>{{item.port}}/{{item.transport}}</td><td>{{item.from_protocol}} → {{item.to_protocol}}</td><td>{{item.from_product or ''}} {{item.from_version or ''}}</td><td>{{item.to_product or ''}} {{item.to_version or ''}}</td></tr>{% else %}<tr><td colspan="5">No service or version changes.</td></tr>{% endfor %}</table>
+<p>Comparison results depend on equivalent authorized scope and completed scanner coverage. Validate coverage differences before treating an absent finding as remediated.</p>
+</body></html>

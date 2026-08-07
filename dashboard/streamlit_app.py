@@ -103,6 +103,10 @@ def dashboard_view() -> None:
     active_scans = sum(item.get("status") in {"queued", "running"} for item in scans)
     exposed_services = sum(len(item.get("services", [])) for item in assets)
     high_risk = severity["critical"] + severity["high"]
+    reachable = sum(item.get("reachability") == "up" for item in assets)
+    unreachable = sum(item.get("reachability") == "down" for item in assets)
+    kev_findings = sum(bool(item.get("cisa_kev")) for item in findings)
+    failed_scans = sum(item.get("status") == "failed" for item in scans)
 
     cards = st.columns(5)
     with cards[0]:
@@ -127,6 +131,18 @@ def dashboard_view() -> None:
         )
     with cards[4]:
         metric_card("Engagements", len(engagements), "Authorization-backed", "▣")
+
+    secondary = st.columns(5)
+    with secondary[0]:
+        metric_card("Total scans", len(scans), "Assessment history", "▤")
+    with secondary[1]:
+        metric_card("Reachable", reachable, "Observed up", "●", "positive")
+    with secondary[2]:
+        metric_card("Unreachable", unreachable, "Observed down", "○")
+    with secondary[3]:
+        metric_card("CISA KEV", kev_findings, "Known exploited", "!", "danger" if kev_findings else "positive")
+    with secondary[4]:
+        metric_card("Failed scans", failed_scans, "Requires review", "×", "danger" if failed_scans else "positive")
 
     st.write("")
     left, right = st.columns([1.55, 1], gap="large")
@@ -156,6 +172,39 @@ def dashboard_view() -> None:
             {"Severity": "Low", "Findings": severity["low"], "Response": "30 days"},
         ]
         st.dataframe(risk_rows, hide_index=True, use_container_width=True, height=260)
+
+    st.write("")
+    analytics_left, analytics_right = st.columns(2, gap="large")
+    with analytics_left:
+        panel_heading("Findings by asset", "Assets carrying the largest analyst workload")
+        by_asset = Counter(item.get("asset_ip") or "Unknown" for item in findings)
+        if by_asset:
+            st.bar_chart(
+                [
+                    {"Asset": asset, "Findings": count}
+                    for asset, count in by_asset.most_common(10)
+                ],
+                x="Asset",
+                y="Findings",
+            )
+        else:
+            st.caption("No asset findings are available.")
+    with analytics_right:
+        panel_heading("Findings by service", "Protocols most frequently associated with findings")
+        by_service = Counter(
+            item.get("protocol") or item.get("service") or "Unknown" for item in findings
+        )
+        if by_service:
+            st.bar_chart(
+                [
+                    {"Service": service, "Findings": count}
+                    for service, count in by_service.most_common(10)
+                ],
+                x="Service",
+                y="Findings",
+            )
+        else:
+            st.caption("No service findings are available.")
 
     st.write("")
     panel_heading("Recent assessments", "Latest scan operations and their current stage")

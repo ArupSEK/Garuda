@@ -33,6 +33,35 @@ def test_deduplication_prefers_confidence_and_merges_sources():
     assert result["confidence"] == "confirmed" and result["source_references"] == ["nmap", "nuclei"]
 
 
+def test_same_cve_from_different_scanners_gets_one_stable_fingerprint():
+    left = normalize_finding(
+        {
+            "ip": "8.8.8.8",
+            "port": 443,
+            "protocol": "https",
+            "cve": ["CVE-2024-0001"],
+            "scanner": "nuclei",
+            "scanner_rule_id": "nuclei-rule",
+        },
+        scan_id="S1",
+        engagement_id="E1",
+    )
+    right = normalize_finding(
+        {
+            "ip": "8.8.8.8",
+            "port": 443,
+            "protocol": "https",
+            "cve": "CVE-2024-0001",
+            "scanner": "openvas",
+            "scanner_rule_id": "oid-123",
+        },
+        scan_id="S1",
+        engagement_id="E1",
+    )
+    assert left["finding_id"] == right["finding_id"]
+    assert len(deduplicate([left, right])) == 1
+
+
 def test_risk_and_comparison():
     score, priority = calculate_risk(
         {"cvss_v31_score": 9.8, "confidence": "confirmed", "cisa_kev": True, "exploit_available": True}
@@ -48,6 +77,45 @@ def test_risk_and_comparison():
     }
     result = compare_scans(old, new)
     assert result["new"][0]["finding_id"] == "b" and result["closed_ports"]
+
+
+def test_comparison_reports_version_confidence_and_management_changes():
+    old = {
+        "findings": [{"finding_id": "a", "severity": "low", "confidence": "potential"}],
+        "services": [
+            {
+                "ip": "8.8.8.8",
+                "port": 443,
+                "transport": "tcp",
+                "protocol": "https",
+                "product": "nginx",
+                "version": "1.0",
+            }
+        ],
+    }
+    new = {
+        "findings": [{"finding_id": "a", "severity": "high", "confidence": "confirmed"}],
+        "services": [
+            {
+                "ip": "8.8.8.8",
+                "port": 443,
+                "transport": "tcp",
+                "protocol": "https",
+                "product": "nginx",
+                "version": "2.0",
+            },
+            {
+                "ip": "8.8.8.8",
+                "port": 3389,
+                "transport": "tcp",
+                "protocol": "rdp",
+            },
+        ],
+    }
+    result = compare_scans(old, new)
+    assert result["severity_changed"] and result["confidence_changed"]
+    assert result["service_changed"][0]["from_version"] == "1.0"
+    assert result["new_management_services"][0]["port"] == 3389
 
 
 def test_redaction():

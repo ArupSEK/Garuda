@@ -1,8 +1,9 @@
 """Asset and service exposure inventory."""
 
+import httpx
 import streamlit as st
 
-from dashboard.client import api, require_login
+from dashboard.client import API_URL, api, headers, require_login
 from dashboard.ui import configure_page, empty_state, logout_control, metric_card, page_header, panel_heading
 
 configure_page("Assets", "⬡")
@@ -79,14 +80,53 @@ if filtered:
         for item in filtered
     ]
     st.dataframe(rows, hide_index=True, use_container_width=True)
-    selected_ip = st.selectbox("Inspect asset", [item["ip"] for item in filtered])
-    selected = next(item for item in filtered if item["ip"] == selected_ip)
+    labels = {f"{item['ip']} · {item.get('scan_id', 'unknown scan')}": item for item in filtered}
+    selected = labels[st.selectbox("Inspect asset", list(labels))]
+    selected_ip = selected["ip"]
+    try:
+        details = api("GET", f"/api/assets/{selected['id']}")
+    except Exception as exc:
+        st.error(f"Asset details are unavailable: {exc}")
+        details = selected
     with st.expander(f"Service intelligence · {selected_ip}", expanded=True):
-        service_rows = selected.get("services", [])
+        service_rows = details.get("services", [])
         if service_rows:
             st.dataframe(service_rows, hide_index=True, use_container_width=True)
         else:
             st.caption("No open services were confirmed for this asset.")
+    service_tab, finding_tab, visual_tab, history_tab = st.tabs(
+        ["Services", "Vulnerabilities", "Screenshots", "History"]
+    )
+    with service_tab:
+        st.dataframe(details.get("services", []), hide_index=True, use_container_width=True)
+    with finding_tab:
+        if details.get("findings"):
+            st.dataframe(details["findings"], hide_index=True, use_container_width=True)
+        else:
+            st.info("No normalized findings are linked to this asset in the selected scan.")
+    with visual_tab:
+        screenshots = details.get("screenshots", [])
+        if not screenshots:
+            st.info("No screenshot evidence was collected for this asset.")
+        for shot in screenshots:
+            response = httpx.get(
+                f"{API_URL}/api/assets/{selected['id']}/screenshots/{shot['file_name']}",
+                headers=headers(),
+                timeout=30,
+            )
+            if response.is_success:
+                classifications = ", ".join(shot.get("classifications") or []) or "unclassified"
+                st.image(
+                    response.content,
+                    caption=(
+                        f"{shot.get('title') or shot.get('url')} · "
+                        f"{shot.get('response_code')} · {classifications}"
+                    ),
+                )
+            else:
+                st.warning(f"Screenshot evidence could not be loaded: {shot.get('file_name')}")
+    with history_tab:
+        st.dataframe(details.get("history", []), hide_index=True, use_container_width=True)
 else:
     empty_state(
         "No assets match these filters", "Adjust the search, reachability, or minimum-risk criteria.", "⬡"

@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install application and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+      - name: Static checks
+        run: |
+          python -m ruff check .
+          python -m compileall -q app dashboard tests
+          python -c "from app.main import app; assert app.openapi()['paths']"
+      - name: Unit tests
+        run: python -m pytest --cov=app --cov-report=term-missing
+      - name: Validate Compose model
+        env:
+          SECRET_KEY: ci-validation-only
+        run: docker compose config --quiet
+
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build scanner appliance
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: garuda-ci:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
