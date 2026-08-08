@@ -1,7 +1,7 @@
 """Authorized scan creation, progress, cancellation, and comparison."""
 
 import secrets
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -18,16 +18,19 @@ from app.schemas.scan import ScanCreate
 from app.services.comparison_engine import compare_scans
 from app.services.scan_orchestrator import scan_orchestrator
 from app.services.scope_validator import enforce_engagement_scope, expand_targets
+from app.utils.datetime_utils import normalize_utc
 
 router = APIRouter(prefix="/api/scans", tags=["scans"])
 
 
 def scan_dict(item: Scan) -> dict:
-    return {
-        column.name: getattr(item, column.name)
-        for column in item.__table__.columns
-        if column.name not in {"id", "engagement_id", "started_by"}
-    }
+    result = {}
+    for column in item.__table__.columns:
+        if column.name in {"id", "engagement_id", "started_by"}:
+            continue
+        value = getattr(item, column.name)
+        result[column.name] = normalize_utc(value) if isinstance(value, datetime) else value
+    return result
 
 
 def snapshot(db: Session, scan: Scan) -> dict:
