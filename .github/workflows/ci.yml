@@ -46,3 +46,20 @@ jobs:
           tags: garuda-ci:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  windows-launcher:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repair an empty application secret
+        shell: powershell
+        run: |
+          Set-Content -LiteralPath .env -Value "SECRET_KEY=" -Encoding ascii
+          & .\scripts\ensure_env.ps1 -ProjectRoot $PWD.Path
+          $Secret = (Select-String -LiteralPath .env -Pattern '^SECRET_KEY=(.+)$').Matches[0].Groups[1].Value
+          if ($Secret.Length -lt 32) { throw "SECRET_KEY was not repaired" }
+          $FirstSecret = $Secret
+          & .\scripts\ensure_env.ps1 -ProjectRoot $PWD.Path
+          $SecondSecret = (Select-String -LiteralPath .env -Pattern '^SECRET_KEY=(.+)$').Matches[0].Groups[1].Value
+          if ($SecondSecret -ne $FirstSecret) { throw "Valid SECRET_KEY was unexpectedly replaced" }

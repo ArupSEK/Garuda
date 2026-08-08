@@ -50,7 +50,7 @@ chmod +x start-docker-linux.sh
 ./start-docker-linux.sh
 ```
 
-The Docker launchers verify Docker, create `.env` with a cryptographically random secret when needed, build the self-contained images, start both healthy services, and open the dashboard. The approved scanner suite, browser, and signed template snapshot are included in the image; end users do not install scanner binaries or templates manually. The first build is larger because it creates the complete scanner appliance. Set `GARUDA_NO_BROWSER=1` to suppress browser launch.
+The Docker launchers verify Docker, create `.env` with a cryptographically random secret when needed, and automatically repair a missing, blank, placeholder, weak, or duplicate `SECRET_KEY`. They then build the self-contained images, start both healthy services, and open the dashboard. The approved scanner suite, browser, and signed template snapshot are included in the image; end users do not install scanner binaries or templates manually. The first build is larger because it creates the complete scanner appliance. Set `GARUDA_NO_BROWSER=1` to suppress browser launch.
 
 ### One-command launchers
 

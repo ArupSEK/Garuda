@@ -47,7 +47,7 @@ docker compose ps
 curl http://127.0.0.1:8000/api/health
 ```
 
-Or use the one-click launcher: `start-docker-windows.bat` on Windows, or `./start-docker-linux.sh` on Linux, Kali, Ubuntu, and WSL. The first build downloads and verifies the pinned scanner assets and can take several minutes. Later starts reuse the built images.
+Or use the one-click launcher: `start-docker-windows.bat` on Windows, or `./start-docker-linux.sh` on Linux, Kali, Ubuntu, and WSL. The launcher creates `.env` and repairs missing, blank, placeholder, weak, or duplicate application secrets automatically. The first build downloads and verifies the pinned scanner assets and can take several minutes. Later starts reuse the built images.
 
 Windows Command Prompt users should use `copy .env.example .env` instead of `cp`. PowerShell users should use `Copy-Item .env.example .env`. The one-click Windows launcher performs this securely and avoids either manual command.
 
