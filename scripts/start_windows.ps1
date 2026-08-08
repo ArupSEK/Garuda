@@ -10,6 +10,8 @@ Set-StrictMode -Version Latest
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $ProjectRoot
 
+& (Join-Path $PSScriptRoot "ensure_env.ps1") -ProjectRoot $ProjectRoot
+
 $VenvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path -LiteralPath $VenvPython)) {
     Write-Host "Creating Python virtual environment..."
@@ -34,22 +36,6 @@ if (-not $SkipInstall) {
 }
 
 $EnvFile = Join-Path $ProjectRoot ".env"
-if (-not (Test-Path -LiteralPath $EnvFile)) {
-    Copy-Item -LiteralPath (Join-Path $ProjectRoot ".env.example") -Destination $EnvFile
-    $Secret = & $VenvPython -c "import secrets; print(secrets.token_urlsafe(48))"
-    $Content = Get-Content -Raw -LiteralPath $EnvFile
-    $Content = $Content -replace "SECRET_KEY=replace-with-a-long-random-secret", "SECRET_KEY=$Secret"
-    Set-Content -LiteralPath $EnvFile -Value $Content -Encoding utf8
-    Write-Host "Created .env with a random application secret."
-}
-
-$ExistingContent = Get-Content -Raw -LiteralPath $EnvFile
-if ($ExistingContent -match '(?m)^SECRET_KEY=replace-with-a-long-random-secret\s*$') {
-    $Secret = & $VenvPython -c "import secrets; print(secrets.token_urlsafe(48))"
-    $ExistingContent = $ExistingContent -replace "SECRET_KEY=replace-with-a-long-random-secret", "SECRET_KEY=$Secret"
-    Set-Content -LiteralPath $EnvFile -Value $ExistingContent -Encoding utf8
-    Write-Host "Replaced placeholder application secret."
-}
 
 function Get-AppSetting {
     param([string]$Name, [string]$Default)

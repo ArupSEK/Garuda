@@ -29,31 +29,15 @@ if errorlevel 1 (
 
 if /I "%GARUDA_LAUNCHER_CHECK%"=="1" exit /b 0
 
-if not exist ".env" (
-    echo Creating secure environment configuration...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-        "$secret=[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLower(); $content=Get-Content -Raw -LiteralPath '.env.example'; $content=$content.Replace('SECRET_KEY=replace-with-a-long-random-secret','SECRET_KEY='+$secret); Set-Content -LiteralPath '.env' -Value $content -Encoding utf8"
-    if errorlevel 1 (
-        echo [ERROR] Could not create .env.
-        pause
-        exit /b 1
-    )
-)
-
-findstr /X /C:"SECRET_KEY=replace-with-a-long-random-secret" ".env" >nul 2>&1
-if not errorlevel 1 (
-    echo Replacing placeholder application secret...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-        "$secret=[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLower(); $content=Get-Content -Raw -LiteralPath '.env'; $content=$content.Replace('SECRET_KEY=replace-with-a-long-random-secret','SECRET_KEY='+$secret); Set-Content -LiteralPath '.env' -Value $content -Encoding utf8"
-    if errorlevel 1 (
-        echo [ERROR] Could not secure .env.
-        pause
-        exit /b 1
-    )
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\ensure_env.ps1" -ProjectRoot "%CD%"
+if errorlevel 1 (
+    echo [ERROR] Could not create or repair .env.
+    pause
+    exit /b 1
 )
 
 echo Building and starting Garuda...
-docker compose up -d --build
+docker compose --env-file ".env" up -d --build
 if errorlevel 1 (
     echo [ERROR] Garuda could not be started. Review the Docker output above.
     pause
@@ -64,7 +48,7 @@ set "DASHBOARD_PORT=8501"
 for /f "tokens=1,* delims==" %%A in (.env) do if /I "%%A"=="GARUDA_DASHBOARD_PORT" set "DASHBOARD_PORT=%%B"
 
 timeout /t 5 /nobreak >nul
-docker compose ps
+docker compose --env-file ".env" ps
 echo.
 echo Garuda is starting at http://localhost:%DASHBOARD_PORT%
 echo To stop it later, run: docker compose down

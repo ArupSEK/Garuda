@@ -23,26 +23,15 @@ if [[ "${GARUDA_LAUNCHER_CHECK:-0}" == "1" ]]; then
   exit 0
 fi
 
+ENV_CREATED=0
 if [[ ! -f .env ]]; then
-  echo "Creating secure environment configuration..."
-  if command -v openssl >/dev/null 2>&1; then
-    APP_SECRET="$(openssl rand -hex 32)"
-  else
-    APP_SECRET="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
-  fi
-  TEMP_ENV=".env.tmp.$$"
-  trap 'rm -f "$TEMP_ENV"' EXIT
-  awk -v secret="$APP_SECRET" '
-    /^SECRET_KEY=/ { print "SECRET_KEY=" secret; next }
-    { print }
-  ' .env.example > "$TEMP_ENV"
-  mv "$TEMP_ENV" .env
-  trap - EXIT
-  chmod 600 .env
+  cp .env.example .env
+  ENV_CREATED=1
 fi
 
-if grep -q '^SECRET_KEY=replace-with-a-long-random-secret$' .env; then
-  echo "Replacing placeholder application secret..."
+SECRET_COUNT="$(grep -c '^[[:space:]]*SECRET_KEY[[:space:]]*=' .env || true)"
+CURRENT_SECRET="$(sed -n 's/^[[:space:]]*SECRET_KEY[[:space:]]*=[[:space:]]*//p' .env | tail -n 1 | tr -d '\r')"
+if [[ "$SECRET_COUNT" != "1" || "$CURRENT_SECRET" == "replace-with-a-long-random-secret" || ${#CURRENT_SECRET} -lt 32 ]]; then
   if command -v openssl >/dev/null 2>&1; then
     APP_SECRET="$(openssl rand -hex 32)"
   else
@@ -51,23 +40,29 @@ if grep -q '^SECRET_KEY=replace-with-a-long-random-secret$' .env; then
   TEMP_ENV=".env.tmp.$$"
   trap 'rm -f "$TEMP_ENV"' EXIT
   awk -v secret="$APP_SECRET" '
-    /^SECRET_KEY=/ { print "SECRET_KEY=" secret; next }
+    /^[[:space:]]*SECRET_KEY[[:space:]]*=/ { next }
     { print }
+    END { print "SECRET_KEY=" secret }
   ' .env > "$TEMP_ENV"
   mv "$TEMP_ENV" .env
   trap - EXIT
-  chmod 600 .env
+  if [[ "$ENV_CREATED" == "1" ]]; then
+    echo "Created .env with a secure application secret."
+  else
+    echo "Repaired the missing or invalid SECRET_KEY in .env."
+  fi
 fi
+chmod 600 .env
 
 echo "Building and starting Garuda..."
-docker compose up -d --build
+docker compose --env-file .env up -d --build
 
 DASHBOARD_PORT="$(sed -n 's/^GARUDA_DASHBOARD_PORT=//p' .env | tail -n 1)"
 DASHBOARD_PORT="${DASHBOARD_PORT:-8501}"
 DASHBOARD_URL="http://localhost:${DASHBOARD_PORT}"
 
 sleep 5
-docker compose ps
+docker compose --env-file .env ps
 echo
 echo "Garuda is starting at ${DASHBOARD_URL}"
 echo "To stop it later, run: docker compose down"
