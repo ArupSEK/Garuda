@@ -1,10 +1,9 @@
 """Live scan operations console."""
 
-from datetime import UTC, datetime
-
 import httpx
 import streamlit as st
 
+from app.utils.datetime_utils import format_elapsed
 from dashboard.client import API_URL, api, headers, require_login
 from dashboard.ui import (
     configure_page,
@@ -103,13 +102,7 @@ with overview:
         st.write(f"**Completed:** {data.get('end_time') or 'In progress'}")
         st.write(f"**Scanner versions:** {data.get('scanner_versions') or 'Not recorded for this assessment'}")
         if data.get("start_time"):
-            started = datetime.fromisoformat(str(data["start_time"]))
-            ended = (
-                datetime.fromisoformat(str(data["end_time"]))
-                if data.get("end_time")
-                else datetime.now(UTC)
-            )
-            st.write(f"**Elapsed:** {str(ended - started).split('.')[0]}")
+            st.write(f"**Elapsed:** {format_elapsed(data['start_time'], data.get('end_time'))}")
         st.write(
             f"**Targets:** {len(target_progress.get('completed', []))} completed · "
             f"{len(target_progress.get('pending', data.get('targets', [])))} pending"
